@@ -1,0 +1,42 @@
+===Description===
+
+
+===Learning Goals===
+
+  - Un
+
+===Development goals===
+
+  Implement a password spraying tool that supports the following options
+    - formats the output nicely
+    - Supported protocols: SSH, Basic, 
+  
+  As a stretch, we might try to implement the following options to our program:
+    - multithreading
+    - supports password spraying on multiple servers
+    - generates a list of passwords based on statistics?
+    - allows session restoration
+
+===Rough Schedule===
+
+Set up a server to attack, where access is granted through SSH logins - lots of accounts with different usernames and passwords.
+
+Write our own program to spray passwords to this server.
+
+Add options
+  - formatting
+  - delay
+  - redirect output to file
+
+Reconfigure server to use Basic auth
+
+  
+
+
+
+
+
+    
+  
+  
+
