@@ -3,13 +3,16 @@
 
 ===Learning Goals===
 
-  - Un
+  - Understand how to send multiple packets containing authentication information to a server
+  - Understand how to do multithreading (long-term goal)
+  - Understand ways to optimize password spraying
 
 ===Development goals===
 
   Implement a password spraying tool that supports the following options
     - formats the output nicely
-    - Supported protocols: SSH, Basic, 
+    - Supported protocols: SSH, Basic HTTP authentication
+    - Supports brute force and dictionary attacks
   
   As a stretch, we might try to implement the following options to our program:
     - multithreading
