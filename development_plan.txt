@@ -16,6 +16,7 @@
   
   As a stretch, we might try to implement the following options to our program:
     - multithreading
+    - Cheking for valid command line arguments & other stuff
     - supports password spraying on multiple servers
     - generates a list of passwords based on statistics?
     - allows session restoration
@@ -30,9 +31,11 @@ Add options
   - formatting
   - delay
   - redirect output to file
+  - error codes for invalid inputs
 
 Reconfigure server to use Basic auth
 
+Make our program compatible with Basic auth
   
 
 
