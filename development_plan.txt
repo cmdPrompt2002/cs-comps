@@ -1,5 +1,6 @@
 ===Description===
-
+-a web server for testing password spraying
+-a password spraying program
 
 ===Learning Goals===
 
