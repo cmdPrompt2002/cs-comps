@@ -24,7 +24,7 @@
 
 ===Rough Schedule===
 
-Set up a server to attack, where access is granted through SSH logins - lots of accounts with different usernames and passwords.
+Set up a server to attack, where access is granted through SSH logins - lots of accounts with different usernames and passwords. 
 
 Write our own program to spray passwords to this server.
 
@@ -37,8 +37,8 @@ Add options
 Reconfigure server to use Basic auth
 
 Make our program compatible with Basic auth
-  
 
+If we have time, pick some stretch goals to work on.
 
 
 
