@@ -13,7 +13,7 @@ How to input passwords into prompts from a list.
 
 Multithreading - what it is and how to do it.
 
-Learn more about build system - how to convert our source code files into a standalone program that's executable from terminal.
+Learn more about build system - how to convert our source code files into a standalone program that's executable from terminal. We will use a makefile for this.
 
 # A description of your project's architecture. This could be just a diagram of your expected code organization, but it could also include things like the setup of a target server, the data you're going to need for testing, a build system (e.g., Makefile or something similar), etc.
 
@@ -64,10 +64,28 @@ To achive our goal, we will follow the following schedule:
 3. Let it attempt to login with a password from a list.
 4. Make it print out a log of whether the attempts (only one for now) were succesful then automatically close the connection.
 5. Let it try to login to different usernames from a list with password from the list.
-6. 
+
+Next steps after this will depend on the time remaining, but we will split up and individually work towards fleshing out the program and working towards stretch goals. This will involve.
+1. Configure output to be more readable.
+2. Check command-line arguments for validity and give a helpful error message if invalid.
+3. Introduce a delay between login attempts.
+4. Make it work with other protocols, such as basic auth.
+5. Improve it's runtime through various ways. 
+6. Introduce multithreading to speed up its progression through the lists. 
+7. Restore previous sessions that ended early due to crashes and user termination. 
 
 # A list of things one or more of you are worried about. This could be stuff you don't understand yet, things you think might take too long, etc.
 
+How to make a build system, how we will be configuring the server, 
+
 # A brief explanation of how you're going to communicate and when you're going to meet to work together.
 
+Communicate via primarily Discord but we also have slack if there's a problem with Discord.
+
+We'll meet frequently early on to make the foundation program together. Afterwards, we will check in with each other to review our progress on chosen tasks, and learn about what the other person is doing and how they're doing it.
+
 # A brief explanation of how you're going to ensure that all team members contribute substantially to the end product. (It is shockingly easy for one team member to ride the wave of the rest of the team's work, and end up with no contributions to show for themselves, and even less understanding of the project as a whole. Let's make sure this doesn't happen.)
+
+Focus on working together to make a working foundation for our product. After that, split up to add more features and expand use cases. 
+
+We start by working together, so we should be able to make sure that both of us make sure we both feel we are contributing. When we split up for adding features, we will do periodic check ins on the other team member to learn about what they're doing but also make sure they are contributing.
