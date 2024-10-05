@@ -7,6 +7,8 @@ A rudimentary password spraying tool that supports Basic authentication in http-
 How SSH logins work and what factors must be present in order for it to work. Related—how to use C's SSH package.
 Same for the http-get basic authentication.
 
+How to interact with a terminal from a script in C. 
+
 How to set up a server for testing our tool.
 
 How to input passwords into prompts from a list.
@@ -76,7 +78,7 @@ Next steps after this will depend on the time remaining, but we will split up an
 
 # A list of things one or more of you are worried about. This could be stuff you don't understand yet, things you think might take too long, etc.
 
-How to make a build system, how we will be configuring the server, 
+How to make a build system, how we will be configuring the server, how to parse the server's response/request for authentication.
 
 # A brief explanation of how you're going to communicate and when you're going to meet to work together.
 
