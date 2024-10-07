@@ -61,7 +61,7 @@ Prioritize on getting the minimum viable product done first. This includes the f
     - Able to reattempt with another username and password combination.
 
 To achive our goal, we will follow the following schedule:
-1. set up a target server on an Ubuntu VM using apache2 requiring ssh authentication.
+1. set up a target server on an Ubuntu VM using openSSH, which requires ssh authentication.
 2. Write a basic executable capable of attempting to login given a username to the target server.
 3. Let it attempt to login with a password from a list.
 4. Make it print out a log of whether the attempts (only one for now) were succesful then automatically close the connection.
