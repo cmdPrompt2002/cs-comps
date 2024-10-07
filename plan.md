@@ -49,7 +49,7 @@ Learn more about build system - how to convert our source code files into a stan
 
 # A more detailed schedule of development than you wrote last week. In addition to a list of development steps and proposed deadlines, you should feel free to annotate items that feel uncertain at this moment.
 
-Set up SSH-based authentication website on Apache2, which runs on our downloaded Ubuntu server. Includes about 5 users whose username and password are common, and also another 5 users with edge case usernames and passwords. (By next Monday!)
+Set up SSH-based authentication website on openSSH, which runs on our downloaded Ubuntu server. Includes about 5 users whose username and password are common, and also another 5 users with edge case usernames and passwords. (By next Monday!)
 
 Edge case passwords (if viable):
     -, "", >, |, <, /
