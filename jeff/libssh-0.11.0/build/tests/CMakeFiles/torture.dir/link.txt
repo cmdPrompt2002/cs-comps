@@ -1,2 +1,0 @@
-/Library/Developer/CommandLineTools/usr/bin/ar qc libtorture.a CMakeFiles/torture.dir/cmdline.c.o CMakeFiles/torture.dir/torture.c.o CMakeFiles/torture.dir/torture_key.c.o CMakeFiles/torture.dir/torture_pki.c.o CMakeFiles/torture.dir/torture_cmocka.c.o
-/Library/Developer/CommandLineTools/usr/bin/ranlib libtorture.a
