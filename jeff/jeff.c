@@ -9,13 +9,13 @@ int main(int argc, char *argv[]) {
 
     //SSH
     if (!strcmp(argv[1], "ssh")) {
-        int port = 22;
+        int port = 2220;
 
         //Configure the options before making an SSH connection
         ssh_session my_ssh = ssh_new();
-        ssh_options_set(my_ssh, SSH_OPTIONS_HOST, "192.168.64.4");
+        ssh_options_set(my_ssh, SSH_OPTIONS_HOST, "bandit.labs.overthewire.org");
         ssh_options_set(my_ssh, SSH_OPTIONS_PORT, &port);
-        ssh_options_set(my_ssh, SSH_OPTIONS_USER, "ubuntu");
+        ssh_options_set(my_ssh, SSH_OPTIONS_USER, "bandit0");
         
         //Connect to SSH server
         int rc = ssh_connect(my_ssh);
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
 
         //Spray passwords
        
-        rc = ssh_userauth_password(my_ssh, NULL, "ubuntu");
+        rc = ssh_userauth_password(my_ssh, NULL, "bandit0");
         if (rc != SSH_AUTH_SUCCESS) {
             fprintf(stderr, "Error authenticating with password: %s\n",
                     ssh_get_error(my_ssh));
