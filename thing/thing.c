@@ -4,23 +4,32 @@
 #include <unistd.h>
 #include <libssh/libssh.h>
 
+//Candidate names: passwordSquirt, sprinker, octopus, 
 /*Command line parsing*/
 int main(int argc, char *argv[]) {
     int c;
     char *service;
     int port;
     char *usr;
-    char *usrFile;
+    char *usrFilename;
     char *pass;
-    char *passFile;
+    char *passFilename;
+    FILE *usrFile;
+    FILE *passFile;
 
     /*Expected input:
         name service destination [-s PORT] [-u USERNAMES] [-p PASSWORD] {more stuff later}
         bandit.labs.overthewire.org
     */
+    
 
-    //Command line parsing
-    while ((c = getopt(argc, argv, ":s:u:U:p:P:")) >= 0) {
+    /*Command line parsing*/
+
+    //Service and destination
+
+    //Options parsing
+    while ((c = getopt(argc, argv, ":s:u:U:p:P:")) != -1) {
+        printf("%d" , c);
         switch (c) {
             case 's':
                 port = atoi(optarg);
@@ -29,13 +38,15 @@ int main(int argc, char *argv[]) {
                 usr = optarg;
                 break;
             case 'U':
-                usrFile = optarg;
+                usrFilename = optarg;
+                usrFile = fopen(usrFilename, "r");
                 break;
             case 'p':
                 pass = optarg;
                 break;
             case 'P':
-                passFile = optarg;
+                passFilename = optarg;
+                passFile = fopen(usrFilename, "r");
                 break;
             case ':':
                 printf("Option -%c requires an argument\n", optopt);
@@ -49,14 +60,15 @@ int main(int argc, char *argv[]) {
     }
 
     /*===Services===*/
+
     //SSH
-    if (!strcmp(argv[1], "ssh")) {
-        char *destination = argv[2];
-        int port = 2220; //Ideally should use regex
+    if (!strcmp(argv[8], "ssh")) {
+        char *destination = argv[7];
         // char *username;
         // char *password;
 
         //Configure the options before making an SSH connection
+        fprintf(stdout, "%d",port);
         ssh_session my_ssh = ssh_new();
         ssh_options_set(my_ssh, SSH_OPTIONS_HOST, destination);
         ssh_options_set(my_ssh, SSH_OPTIONS_PORT, &port);
@@ -72,7 +84,7 @@ int main(int argc, char *argv[]) {
     //     fptr = fopen(argv[5], "r");
     //     username = 
     // }
-        ssh_options_set(my_ssh, SSH_OPTIONS_USER, "bandit0");
+        ssh_options_set(my_ssh, SSH_OPTIONS_USER, usr);
         
         //Connect to SSH server
         int rc = ssh_connect(my_ssh);
@@ -93,7 +105,7 @@ int main(int argc, char *argv[]) {
 
         //Spray passwords
        
-        rc = ssh_userauth_password(my_ssh, NULL, "bandit0");
+        rc = ssh_userauth_password(my_ssh, NULL, pass);
         if (rc != SSH_AUTH_SUCCESS) {
             fprintf(stderr, "Error authenticating with password: %s\n",
                 ssh_get_error(my_ssh));
@@ -101,7 +113,7 @@ int main(int argc, char *argv[]) {
             ssh_free(my_ssh);
             exit(-1);
         } else {
-            printf("Authentication successful. Username:%s, Password:%s\n", "bandit0", "bandit0");
+            printf("Authentication successful. Username:%s, Password:%s\n", usr, pass);
             ssh_disconnect(my_ssh);
             ssh_free(my_ssh);
         }
