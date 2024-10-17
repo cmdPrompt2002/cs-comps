@@ -95,7 +95,14 @@ int main(int argc, char *argv[]) {
             usrFile = fopen(usrFilename, "r");
             passFile = fopen(passFilename, "r");
             while (fgets(usr, 256, usrFile) != NULL) {
+                if(usr[strlen(usr)-1] == '\n') {
+                    printf("newline detected");
+                    usr[strlen(usr)-1] = '\0';
+                }                
                 while (fgets(pass, 256, passFile) != NULL) {
+                    if(pass[strlen(pass)-1] == '\n') {
+                        pass[strlen(pass)-1] = '\0';
+                    }
                     ssh_session my_ssh = ssh_new();
                     sshAttempt(destination, usr, pass, my_ssh);   
                 }
@@ -106,6 +113,9 @@ int main(int argc, char *argv[]) {
         } else if (usrFilename != NULL) {
             usrFile = fopen(usrFilename, "r");
             while (fgets(usr, 256, usrFile) != NULL) {
+                if(usr[strlen(usr)-1] == '\n') {
+                    usr[strlen(usr)-1] = '\0';
+                }
                 ssh_session my_ssh = ssh_new();
                 sshAttempt(destination, usr, pass, my_ssh);   
             }
@@ -115,7 +125,9 @@ int main(int argc, char *argv[]) {
             passFile = fopen(passFilename, "r");
             printf("B\n");
             while (fgets(pass, 256, passFile) != NULL) {
-                printf("C\n");
+                if(pass[strlen(pass)-1] == '\n') {
+                    pass[strlen(pass)-1] = '\0';
+                }            // Replace new line with null to mark end of password
                 ssh_session my_ssh = ssh_new();
                 sshAttempt(destination, usr, pass, my_ssh);   
             }
@@ -126,8 +138,10 @@ int main(int argc, char *argv[]) {
         }
 
         // ssh_free(my_ssh);
-        
     }
+    
+    free(pass);
+    free(usr);
     
     return 0;
 }
@@ -149,7 +163,7 @@ void sshAttempt(char* destination, char* username, char* password, ssh_session m
         exit(-1);
     }
 
-    printf("Sucessful connection\n");
+    printf("Successful connection\n");
     
     printf("User:%s, Pass:%s\n", usr, pass);
     sshOutput(ssh_userauth_password(my_ssh, NULL, pass), my_ssh);
