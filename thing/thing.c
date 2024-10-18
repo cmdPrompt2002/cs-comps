@@ -26,6 +26,7 @@ int main(int argc, char *argv[]) {
     int opt;
     usr = malloc(256*sizeof(char));
     pass = malloc(256*sizeof(char));
+    printf("Initial Pass address:%p", &pass);
     
     
 
@@ -45,7 +46,7 @@ int main(int argc, char *argv[]) {
                 break;
             case 'u':
                 usr = optarg;
-                // strncpy(usr, optarg, 256);
+                //strncpy(usr, optarg, 256);
                 // usr[255] = '\0';
                 break;
             case 'U':
@@ -140,8 +141,8 @@ int main(int argc, char *argv[]) {
         // ssh_free(my_ssh);
     }
     
-    free(pass);
-    free(usr);
+    // free(pass);
+    // free(usr);
     
     return 0;
 }
@@ -182,6 +183,9 @@ void sshOutput(int attemptStatus, ssh_session my_ssh) {
         ssh_get_error(my_ssh));
         ssh_disconnect(my_ssh);
     }
+    
     ssh_free(my_ssh); //Do we really wanna free and allocate new ssh_session every time?
+    
+
     return;
 }
