@@ -35,50 +35,95 @@ int main(int argc, char *argv[]) {
     */
     
     /*Command line parsing*/
-    optind = 1;
-    //printf("optind: %i, arg: %s\n", optind, argv[optind]);
-    while (optind < argc) {
-        opt = getopt(argc, argv, ":s:u:U:p:P:");
-        // printf("optind: %i, arg: %s\n", optind, argv[optind]);
-        switch (opt) {
-            case 's':
-                port = atoi(optarg);
-                break;
-            case 'u':
-                usr = optarg;
-                break;
-            case 'U':
-                usrFilename = optarg;
-                break;
-            case 'p':
-                pass = optarg;
-                break;
-            case 'P':
-                passFilename = optarg;
-                break;
-            case ':':
-                printf("Option -%c requires an argument\n", optopt);
-                exit(1);
-                break;
-            case '?':
-                printf("Unknown option -%c", optopt);
-                exit(1);
-                break;
-            case -1:
-                //A non-option argument: must be either destination or service
-                if (!strncmp(argv[optind], "ssh", 4)) {
-                    service = "ssh";
-                } else {
-                    destination = argv[optind];
-                }
-                optind++;
-                break;
-            default:
-                exit(1);
-                break;
 
+    printf("optind: %i, arg: %s\n", optind, argv[optind]);
+    while (optind < argc) {
+        if ((opt = getopt(argc, argv, ":s:u:p:U:P:")) != -1) {
+            printf("optind: %i, arg: %s\n", optind, argv[optind]);
+            switch (opt) {
+                case 's':
+                    port = atoi(optarg);
+                    break;
+                case 'u':
+                    usr = optarg;
+                    break;
+                case 'U':
+                    usrFilename = optarg;
+                    break;
+                case 'p':
+                    pass = optarg;
+                    break;
+                case 'P':
+                    passFilename = optarg;
+                    break;
+                case ':':
+                    printf("Option -%c requires an argument\n", optopt);
+                    exit(1);
+                    break;
+                case '?':
+                    printf("Unknown option -%c", optopt);
+                    exit(1);
+                    break;
+                default:
+                    printf("default\n");
+                    break;
+            }
+        
+        } else {
+            if (!strncmp(argv[optind], "ssh", 4)) {
+                service = "ssh";
+            } else {
+                destination = argv[optind];         
+            }
+            optind++;
         }
     }
+
+    // while (optind < argc) {
+    //     int save = optind;
+    //     opt = getopt(argc, argv, ":s:u:U:p:P:");
+        
+    //     printf("optind: %i, option: %s\n", optind, argv[optind]);
+        
+    //     switch (opt) {
+    //         case 's':
+    //             port = atoi(optarg);
+    //             break;
+    //         case 'u':
+    //             usr = optarg;
+    //             break;
+    //         case 'U':
+    //             usrFilename = optarg;
+    //             break;
+    //         case 'p':
+    //             pass = optarg;
+    //             break;
+    //         case 'P':
+    //             passFilename = optarg;
+    //             break;
+    //         case ':':
+    //             printf("Option -%c requires an argument\n", optopt);
+    //             exit(1);
+    //             break;
+    //         case '?':
+    //             printf("Unknown option -%c", optopt);
+    //             exit(1);
+    //             break;
+    //         case -1:
+    //             //A non-option argument: must be either destination or service
+    //             if (!strncmp(argv[optind], "ssh", 4)) {
+    //                 service = "ssh";
+    //             } else {
+    //                 destination = argv[optind];
+    //             }
+    //             optind++;
+    //             break;
+    //         default:
+    //             exit(1);
+    //             break;
+
+    //     }
+    // }
 
     //Error checking
 
@@ -108,7 +153,6 @@ int main(int argc, char *argv[]) {
 
             while (fgets(usr, 256, usrFile) != NULL) {
                 if(usr[strlen(usr)-1] == '\n') {
-                    printf("newline detected");
                     usr[strlen(usr)-1] = '\0';
                 }                
                 while (fgets(pass, 256, passFile) != NULL) {
