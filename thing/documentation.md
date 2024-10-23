@@ -21,3 +21,9 @@ Saved all error msgs to a string and print to stderr after all command line rela
 Moved all things ssh to thing-ssh.c
 
 Why I decided to open the usr and pass files right away - no need to duplicate error checking code.
+
+For some reason, moving the ssh code into thing-ssh.c makes Sam's compiler unable to recognize libssh functions, despite having the include libssh tag in both .c and .h files.
+
+Next steps
+- Prompt focuses on HTTP basic auth
+- Sam focuses on improving runtime and implementing delay

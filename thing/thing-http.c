@@ -3,10 +3,14 @@
 #include <stdio.h>
 
 int http_attempt(char *usr, char *pass, char* protocol);
+void http_output();
+int delay();
 
 int http_attempt(char *usr, char *pass, char* protocol) {
     char buffer[250];
 
 
-    send()
+    return 0;
 }
+
+void 

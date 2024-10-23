@@ -42,10 +42,10 @@ int main(int argc, char *argv[]) {
     
     //Command line parsing
     int opt;
-    //printf("optind: %i, arg: %s\n", optind, argv[optind]);
+    printf("optind: %i, arg: %s\n", optind, argv[optind]);
     while (optind < argc) {
         if ((opt = getopt(argc, argv, ":s:u:p:U:P:v")) != -1) {
-            //printf("optind: %i, arg: %s\n", optind, argv[optind]);
+            printf("optind: %i, arg: %s\n", optind, argv[optind]);
             switch (opt) {
                 case 's':
                     port = atoi(optarg);
@@ -89,14 +89,24 @@ int main(int argc, char *argv[]) {
             }
         
         } else {
-            if (!strncmp(argv[optind], "ssh", 4)) {
-                service = "ssh";
-            } else if (!strncmp(argv[optind], "http-get", 8)) {
-                service = "http-get";
-            } else {
-                destination = argv[optind];         
+            for (; optind < argc; optind++) {
+                if (!strncmp(argv[optind], "ssh", 4)) {
+                    service = "ssh";
+                } else if (!strncmp(argv[optind], "http-get", 8)) {
+                    service = "http-get";
+                } else {
+                    destination = argv[optind];         
+                }
             }
-            optind++;
+            // if (!strncmp(argv[optind], "ssh", 4)) {
+            //         service = "ssh";
+            //     } else if (!strncmp(argv[optind], "http-get", 8)) {
+            //         service = "http-get";
+            //     } else {
+            //         destination = argv[optind];         
+            //     }
+            // optind++;
+
         }
     }
 
@@ -171,7 +181,7 @@ int main(int argc, char *argv[]) {
 
     // printf("Passed command line checking\n");
 
-    printf("\n---IT'S SPRAYIN TIME--\n\n");
+    printf("\n---IT'S SPRAYIN TIME---\n\n");
     printf("Destination:%s\nPort:%i\nService:%s\n\n", destination,port,service);
 
     /*===Services===*/
