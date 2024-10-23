@@ -9,8 +9,10 @@ thing: $(OBJS)
 	$(CC) $(CFLAGS) -rpath ./prompt_ssh/ -lssh $^ -o $@
 	rm -f *.o
 
-thing2: $(OBJS) #Sam's compiler
-	$(CC) $(CFLAGS) -o thing -lssh $^ 
+thing2: #Sam's compiler
+	$(CC) $(CFLAGS)    -c -o thing.o thing.c
+	$(CC) $(CFLAGS)    -c -o thing-ssh.o thing-ssh.c
+	$(CC) $(CFLAGS) -o $@ -lssh $^
 	rm -f *.o
 
 clean:
