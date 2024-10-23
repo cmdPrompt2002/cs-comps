@@ -10,8 +10,8 @@ thing: $(OBJS)
 	rm -f *.o
 
 thing2: #Sam's compiler
-	$(CC) $(CFLAGS)    -c -o thing.o thing.c
 	$(CC) $(CFLAGS)    -c -o thing-ssh.o thing-ssh.c
+	$(CC) $(CFLAGS)    -c -o thing.o thing.c
 	$(CC) $(CFLAGS) -o $@ -lssh $^
 	rm -f *.o
 
