@@ -10,7 +10,7 @@ thing: $(OBJS)
 	rm -f *.o
 
 thing2: $(OBJS) #Sam's compiler
-	$(CC) $(CFLAGS) -rpath . -lssh $^ -o $@ 
+	$(CC) $(CFLAGS) -o thing thing.c -lssh 
 	rm -f *.o
 
 clean:
