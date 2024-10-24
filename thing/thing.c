@@ -22,6 +22,7 @@ char *passFilename = NULL;
 FILE *usrFile;
 FILE *passFile;
 int verbose = 0; //Three levels? 0,1,2
+int delay = 0;
 
 //Candidate names: passwordSquirt, sprinkler, octopus, passqrt, squirt, passquirt, brrr, sqwerty, 
 /*Command line parsing*/
@@ -29,7 +30,7 @@ int main(int argc, char *argv[]) {
     
     //Flag for printing error messages
     int err = 0;
-    char *errMsg = malloc(sizeof(char)*600);
+    char *errMsg = malloc(sizeof(char)*500);
     strcpy(errMsg, "Invalid usage:\n");
     
     usr = malloc(256*sizeof(char));
@@ -44,7 +45,7 @@ int main(int argc, char *argv[]) {
     int opt;
     printf("optind: %i, arg: %s\n", optind, argv[optind]);
     while (optind < argc) {
-        if ((opt = getopt(argc, argv, ":s:u:p:U:P:v")) != -1) {
+        if ((opt = getopt(argc, argv, ":s:u:p:U:P:v:d:")) != -1) {
             printf("optind: %i, arg: %s\n", optind, argv[optind]);
             switch (opt) {
                 case 's':
@@ -74,6 +75,9 @@ int main(int argc, char *argv[]) {
                     break;
                 case 'v':
                     verbose = 1;
+                    break;
+                case 'd':
+                    delay = 1;
                     break;
                 case ':':
                     sprintf(errMsg,"    Option -%c requires an argument\n", optopt);

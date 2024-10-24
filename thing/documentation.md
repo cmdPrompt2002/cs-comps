@@ -9,6 +9,7 @@ How getopt works - if a non-option is found...
 
 No need for the success flag to break out of the while loop when correct password is found
 
+Initialize global var port to -1 for detection of invalid usage. Not 22 by default bc http-get may not use port 22
 
 Started exploring how Hydra performs basic auth
 - network programming: https://www.geeksforgeeks.org/socket-programming-cc/
@@ -27,3 +28,12 @@ For some reason, moving the ssh code into thing-ssh.c makes Sam's compiler unabl
 Next steps
 - Prompt focuses on HTTP basic auth
 - Sam focuses on improving runtime and implementing delay
+
+## 10/23/24
+
+Better guide for network programming in C: https://beej.us/guide/bgnet/html/index-wide.html#getaddrinfoprepare-to-launch
+
+What hydra does:
+- Creates a header node containing (1) header string (2) value string and (3) pointer to the next node
+- For each header/value pair, create a node and make it link to the previous one
+- Headers created: Host,User-agent, Cookie, Content-length, Content-type, Proxy-Authorization
