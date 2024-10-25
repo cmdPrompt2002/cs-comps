@@ -190,7 +190,7 @@ int main(int argc, char *argv[]) {
 
     /*===Services===*/
     if (!strcmp(service, "ssh")) {ssh_main();}
-    else if (!strcmp(service, "http-get")) {printf("http!!\n");}
+    else if (!strcmp(service, "http-get")) {http_main();}
     
     return 0;
 }

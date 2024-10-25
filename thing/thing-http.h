@@ -13,8 +13,8 @@ extern FILE *passFile;
 
 int http_main();
 int http_attempt(char *usr, char *pass, char* service);
-void http_output();
-char* to_base64(char *str);
+// void http_output();
+char* to_base64(const unsigned char *data, size_t input_length);
 
 
 #endif

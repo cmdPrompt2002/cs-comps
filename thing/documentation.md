@@ -37,3 +37,9 @@ What hydra does:
 - Creates a header node containing (1) header string (2) value string and (3) pointer to the next node
 - For each header/value pair, create a node and make it link to the previous one
 - Headers created: Host,User-agent, Cookie, Content-length, Content-type, Proxy-Authorization
+
+## 10/24/24
+
+socket(), tobase64(), and connect() successfully :D
+recv takes too long and returns nothing! Maybe I didn't send the request correctly? Yep syntax issue. Fixed!!
+Auth successful!! :D Works for both single pass and user and files!
