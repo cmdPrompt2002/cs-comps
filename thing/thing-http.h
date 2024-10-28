@@ -12,7 +12,7 @@ extern FILE *usrFile;
 extern FILE *passFile;
 
 int http_main();
-int http_attempt(char *usr, char *pass, char* service);
+int http_attempt(char *usr, char *pass);
 // void http_output();
 char* to_base64(const unsigned char *data, size_t input_length);
 

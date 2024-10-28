@@ -43,3 +43,5 @@ What hydra does:
 socket(), tobase64(), and connect() successfully :D
 recv takes too long and returns nothing! Maybe I didn't send the request correctly? Yep syntax issue. Fixed!!
 Auth successful!! :D Works for both single pass and user and files!
+
+TODO - try to reuse the same socket 

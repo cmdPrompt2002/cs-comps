@@ -24,8 +24,9 @@ FILE *usrFile;
 FILE *passFile;
 int verbose = 0; //Three levels? 0,1,2
 int delay = 0;
+int timeFlag = 0;
 
-//Candidate names: passwordSquirt, sprinkler, octopus, passqrt, squirt, passquirt, brrr, sqwerty, 
+//Candidate names: Decided on Sprinkler
 /*Command line parsing*/
 int main(int argc, char *argv[]) {
     clock_t start = clock();
@@ -46,7 +47,7 @@ int main(int argc, char *argv[]) {
     int opt;
     printf("optind: %i, arg: %s\n", optind, argv[optind]);
     while (optind < argc) {
-        if ((opt = getopt(argc, argv, ":s:u:p:U:P:v:d:")) != -1) {
+        if ((opt = getopt(argc, argv, ":s:u:p:U:P:v:d:t:")) != -1) {
             printf("optind: %i, arg: %s\n", optind, argv[optind]);
             switch (opt) {
                 case 's':
@@ -80,6 +81,9 @@ int main(int argc, char *argv[]) {
                 case 'd':
                     delay = 1;
                     break;
+                case 't':
+                    timeFlag = 1;
+                    break;
                 case ':':
                     sprintf(errMsg,"    Option -%c requires an argument\n", optopt);
                     err = 1;
@@ -95,10 +99,11 @@ int main(int argc, char *argv[]) {
         
         } else {
             for (; optind < argc; optind++) {
-                if (!strncmp(argv[optind], "ssh", 4)) {
+                if (!strncmp(argv[optind], "ssh", 3)) {
                     service = "ssh";
                 } else if (!strncmp(argv[optind], "http-get", 8)) {
-                    service = "http-get";
+                    service = malloc(sizeof(char)*9);
+                    strcpy(service, "http-get");
                 } else {
                     destination = argv[optind];         
                 }
@@ -192,10 +197,11 @@ int main(int argc, char *argv[]) {
     /*===Services===*/
     if (!strcmp(service, "ssh")) {ssh_main();}
     else if (!strcmp(service, "http-get")) {http_main();}
-
-    clock_t end = clock();
-    double duration = (double) (end - start) / CLOCKS_PER_SEC;
-    printf("Time spent: %f", duration);
+    if(timeFlag == 1) {
+        clock_t end = clock(); 
+        double duration = (double) (end - start) / CLOCKS_PER_SEC;
+        printf("Time spent: %f\n", duration);
+    }
     return 0;
 }
 

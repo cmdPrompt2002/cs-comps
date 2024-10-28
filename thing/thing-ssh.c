@@ -10,7 +10,6 @@ void sshOutput(int attemptStatus, ssh_session my_ssh);
 
 void ssh_main() {
     if (usrFilename != NULL && passFilename != NULL) {
-
         while (fgets(usr, 256, usrFile) != NULL) {
             if(usr[strlen(usr)-1] == '\n') {
                 usr[strlen(usr)-1] = '\0';
@@ -55,6 +54,7 @@ void ssh_main() {
         ssh_session my_ssh = ssh_new();
         sshAttempt(destination, usr, pass, my_ssh);   
     }
+    return;
 }
 
 /*
