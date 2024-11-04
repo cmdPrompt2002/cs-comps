@@ -5,12 +5,9 @@
 #include <libssh/libssh.h>
 #include "thing-http.h"
 #include "thing-ssh.h"
-#include <time.h>
+#include <pthread.h>
 
 //Example command: ./thing ssh bandit.labs.overthewire.org -u bandit0 -P passwords.txt -s 2220
-
-// int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh);
-// void sshOutput(int attemptStatus, ssh_session my_ssh);
 
 //Global variables
 char *service;
@@ -24,12 +21,11 @@ FILE *usrFile;
 FILE *passFile;
 int verbose = 0; //Three levels? 0,1,2
 int delay = 0;
-int timeFlag = 0;
+int threads = 0;
 
 //Candidate names: Decided on Sprinkler
 /*Command line parsing*/
 int main(int argc, char *argv[]) {
-    clock_t start = clock();
     //Flag for printing error messages
     int err = 0;
     char *errMsg = malloc(sizeof(char)*500);
@@ -82,7 +78,7 @@ int main(int argc, char *argv[]) {
                     delay = 1;
                     break;
                 case 't':
-                    timeFlag = 1;
+                    threads = 1;
                     break;
                 case ':':
                     sprintf(errMsg,"    Option -%c requires an argument\n", optopt);
@@ -104,6 +100,9 @@ int main(int argc, char *argv[]) {
                 } else if (!strncmp(argv[optind], "http-get", 8)) {
                     service = malloc(sizeof(char)*9);
                     strcpy(service, "http-get");
+                } else if (!strncmp(argv[optind], "http-post", 9)) {
+                    service = malloc(sizeof(char)*10);
+                    strcpy(service, "http-post");
                 } else {
                     destination = argv[optind];         
                 }
@@ -191,17 +190,14 @@ int main(int argc, char *argv[]) {
 
     // printf("Passed command line checking\n");
 
+    // store location for threads
+
     printf("\n---IT'S SPRAYIN TIME---\n\n");
     printf("Destination:%s\nPort:%i\nService:%s\n\n", destination,port,service);
 
     /*===Services===*/
     if (!strcmp(service, "ssh")) {ssh_main();}
-    else if (!strcmp(service, "http-get")) {http_main();}
-    if(timeFlag == 1) {
-        clock_t end = clock(); 
-        double duration = (double) (end - start) / CLOCKS_PER_SEC;
-        printf("Time spent: %f\n", duration);
-    }
+    else if (!strncmp(service, "http",4)) {http_main();}
     return 0;
 }
 

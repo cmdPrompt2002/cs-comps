@@ -11,6 +11,7 @@ extern char *pass;
 extern char *passFilename;
 extern FILE *usrFile;
 extern FILE *passFile;
+extern int threads;
 
 void ssh_main();
 int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh);
