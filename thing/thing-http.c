@@ -113,7 +113,7 @@ int http_main() {
             startParam[0] = '\0'; //to separate the directory from user input options
             char *param = malloc(sizeof(char)*20);
             int optionLength;
-            int optSize;
+            int optSize = 20;
 
             while (startParam != NULL) {
                 startParam += 4; //points to first idx of option value
@@ -182,13 +182,13 @@ int http_main() {
     int attemptStatus;
     if (usrFilename != NULL && passFilename != NULL) {
         while (fgets(usr, 256, usrFile) != NULL) {
-            if(usr[strlen(usr)-1] != '\0') {
+            if(usr[strlen(usr)-1] == '\n') { //Dont change this to ... != '\0', or the last entry will be shorteded by 1 char.
                 usr[strlen(usr)-1] = '\0';
             }                
             while (fgets(pass, 256, passFile) != NULL) {
                 
                 // Replace new line with null to mark end of password
-                if(pass[strlen(pass)-1] != '\0') 
+                if(pass[strlen(pass)-1] == '\n') 
                     pass[strlen(pass)-1] = '\0';
                 attemptStatus = http_attempt(usr,pass);
                 if (attemptStatus == HTTP_AUTH_SUCCESS) 
@@ -273,7 +273,7 @@ int http_get_attempt(char *usr, char*pass) {
     size_t input_length = strlen(passBuffer);
     size_t output_length = 4 * ((input_length + 2) / 3);
     char *encodedPass = NULL;
-    printf("Realloc'ed\n");
+    
     encodedPass = malloc(sizeof(char)*(output_length + 1));; //Stores the base64 encoding of "username:password"
     encodedPass = to_base64((const unsigned char *)passBuffer, input_length, encodedPass) ;
     //printf("%s\n",encodedPass);
