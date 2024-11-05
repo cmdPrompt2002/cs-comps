@@ -268,26 +268,24 @@ int http_get_attempt(char *usr, char*pass) {
     
     //Concat usr and pass for base64 encoding
     sprintf(passBuffer,"%s:%s",usr,pass);
+    // printf("passBuffer: %s\n",passBuffer);
     
     //To base64
     size_t input_length = strlen(passBuffer);
     size_t output_length = 4 * ((input_length + 2) / 3);
-    char *encodedPass = NULL;
-    
-    encodedPass = malloc(sizeof(char)*(output_length + 1));; //Stores the base64 encoding of "username:password"
-    encodedPass = to_base64((const unsigned char *)passBuffer, input_length, encodedPass) ;
-    //printf("%s\n",encodedPass);
+    char encodedPass[output_length + 1]; //Stores the base64 encoding of "username:password"
+    to_base64((const unsigned char *)passBuffer, input_length, encodedPass) ;
+
+    // printf("%s\n",encodedPass);
 
     sprintf(requestBuffer,
               "%s %.250s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 "
                 "(Thing)\r\nConnection: "
-                "keep-alive\r\nAuthorization: Basic %s\r\n\r\n",
-              type, dir, host, encodedPass);
+                "keep-alive\r\nAuthorization: Basic %.*s\r\n\r\n",
+              type, dir, host, (int)output_length, encodedPass);
 
     sprinkler_send();
-    sprinkler_recv(1,fullResponse,fullResponseSize);
-
-    free(encodedPass);
+    sprinkler_recv(0,fullResponse,fullResponseSize);
 
     if (strstr(fullResponse,"HTTP/1.1 2") != NULL) {
         printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
@@ -317,7 +315,8 @@ int http_post_init() {
     sprinkler_send();
 
     //Receive the server's response
-    authDetails = sprinkler_recv(1,authDetails,fullResponseSize);
+    authDetails = sprinkler_recv(0,authDetails,10000);
+    //printf("%s\n",authDetails);
 
     /*PARSE SERVER'S HTML*/
     regex_t regex;
@@ -450,10 +449,11 @@ int http_post_init() {
         start += inputEnd;
  
     }
-    
+    free(authDetails);
     contentLength = strlen(body) + strlen(usrPrefix) + strlen(passPrefix) + 1;
     headersLength = strlen(requestBuffer);
     fullResponse = malloc(sizeof(char)*20000);
+    fullResponseSize = 20000;
     return 0;
 }
 
@@ -463,7 +463,7 @@ int http_post_attempt(char *usr, char *pass, regex_t *successCond, regex_t *fail
             contentLength + strlen(usr) + strlen(pass), body, usrPrefix, usr, passPrefix,pass);
 
     sprinkler_send();
-    fullResponse = sprinkler_recv(1,fullResponse,fullResponseSize);
+    fullResponse = sprinkler_recv(0,fullResponse,fullResponseSize);
 
     //Check whether response contains successCond or failCond. 
     //If neither conds are supplied by the user, 
@@ -535,8 +535,9 @@ void sprinkler_send() {
     
     //Send the HTTP request
     bytes_sent = send(sock, requestBuffer, strlen(requestBuffer), 0);
+    //printf("%s\n\n\n\n",requestBuffer);
     if (bytes_sent != strlen(requestBuffer)) {
-        perror("Request buffer too large to send in one go\nPrompt needs to make better code\n");
+        fprintf(stderr,"Request buffer too large to send in one go\nPrompt needs to make better code\n");
         exit(1);
     }
 }
@@ -546,16 +547,18 @@ char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize) {
     // printf("Entered recv\n");
     int bytesReceived = recv(sock, responseBuffer, MAX_RESPONSE_SIZE-1, 0);
     if (bytesReceived == -1) {
+        
         if (attempt > 3) {
-           fprintf(stderr, "recv failed\n");
+           fprintf(stderr, "recv failed right away\n");
+           fprintf(stderr, "%s\n",requestBuffer);
            exit(1);
         }
-    
-        close(sock);
-        connect_to_serv(servinfo);
+        fprintf(stderr,"recv failed. Try again...\n");
+        // close(sock);
+        // connect_to_serv(servinfo);
         sprinkler_send();
         sprinkler_recv(attempt + 1, fullResponse,fullResponseSize);
-        printf("recv failed. Try again...\n");
+        
     } else if (bytesReceived == 0) {
         if (attempt > 3) {
            fprintf(stderr, "Fails to reconnect and receive response\n");
@@ -567,8 +570,8 @@ char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize) {
         sprinkler_send();
         sprinkler_recv(attempt + 1, fullResponse, fullResponseSize);
     } else { //Server's response received. But need to determine if there's more to receive.
-        
         responseBuffer[bytesReceived] = '\0';
+        //printf("responseBuffer:\n%s\n",responseBuffer);
         sprintf(fullResponse, "%.*s", fullResponseSize, responseBuffer);
 
         if (bytesReceived >= fullResponseSize) {
@@ -612,8 +615,23 @@ char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize) {
             bytesReceived = recv(sock, responseBuffer, MAX_RESPONSE_SIZE-1, 0);
 
             if (bytesReceived == -1) {
-                fprintf(stderr, "recv failed\n");
-                exit(1);
+                fprintf(stderr, "recv failed. Try again...\n");
+                int i = 0;
+                while (1) {
+                    close(sock);
+                    connect_to_serv(servinfo);
+                    sprinkler_send();
+                    bytesReceived = recv(sock, responseBuffer, MAX_RESPONSE_SIZE-1, 0);
+                    if (bytesReceived > 0) {
+                        break;
+                    } else if (bytesReceived == 0) {
+                        return fullResponse;
+                    } else if (i >= 3) {
+                        fprintf(stderr, "Recv failed\n");
+                        exit(1);
+                    }
+                }
+
             } else if (bytesReceived == 0) {
                 //Connection closed - should mean all of server's response is received
                 break;

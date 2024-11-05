@@ -1,4 +1,4 @@
-SRCS = thing.c thing-http.c
+SRCS = thing.c thing-http.c thing-ssh.c
 OBJS = $(SRCS:.c=.o)
 CC = gcc
 CFLAGS = -g 

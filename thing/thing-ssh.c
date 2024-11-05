@@ -7,7 +7,7 @@
 
 void ssh_main();
 int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh);
-void sshOutput(int attemptStatus, ssh_session my_ssh);
+/* void sshOutput(int attemptStatus, ssh_session my_ssh);
 struct Attempt {
     char* destination;
     char* username;
@@ -20,7 +20,7 @@ void sshConfig(Attempt attempt, char* destination, char* username, char* passwor
 char* getDestination(Attempt attempt);
 char* getUsername(Attempt attempt);
 char* getPassword(Attempt attempt);
-ssh_session getSession(Attempt attempt);
+ssh_session getSession(Attempt attempt);*/
 
 
 void ssh_main() {
@@ -35,20 +35,20 @@ void ssh_main() {
                 if(pass[strlen(pass)-1] == '\n') {
                     pass[strlen(pass)-1] = '\0';
                 }
-                if(threads > 0) {
-                    Attempt attempt;
-                    sshConfig(attempt, destination, usr, pass, my_ssh);
-                    pthread_t tID;
-                    // this doesn't work, can't check if it was a success or not, it also doesn't like the argument for some reason
-                    if(pthread_create(&tID, NULL, threadAttempt, &attempt) == SSH_AUTH_SUCCESS) {
-                        break;
-                    }
-                }
+                // if(threads > 0) {
+                //     Attempt attempt;
+                //     sshConfig(attempt, destination, usr, pass, my_ssh);
+                //     pthread_t tID;
+                //     // this doesn't work, can't check if it was a success or not, it also doesn't like the argument for some reason
+                //     if(pthread_create(&tID, NULL, threadAttempt, &attempt) == SSH_AUTH_SUCCESS) {
+                //         break;
+                //     }
+                // }
                 if (sshAttempt(destination, usr, pass, my_ssh) == SSH_AUTH_SUCCESS) {
                     break;
                 }   
             }
-            pthread_join;
+            //pthread_join;
             rewind(passFile);
         }
         fclose(usrFile);
@@ -113,7 +113,7 @@ int sshAttempt(char* destination, char* username, char* password, ssh_session my
     return attemptStatus;
 }
 
-void* threadAttempt(Attempt attempt) {
+/*void* threadAttempt(Attempt attempt) {
     char* destination = getDestination(attempt);
     char* username = getUsername(attempt);
     char* password = getPassword(attempt);
@@ -139,7 +139,7 @@ void* threadAttempt(Attempt attempt) {
     ssh_disconnect(my_ssh);
     ssh_free(my_ssh);
     pthread_exit(attemptStatus);
-}
+}*/
 
 void sshOutput(int attemptStatus, ssh_session my_ssh) {
     if (attemptStatus == SSH_AUTH_SUCCESS) {
@@ -153,7 +153,7 @@ void sshOutput(int attemptStatus, ssh_session my_ssh) {
     return;
 }
 
-void sshConfig(Attempt attempt, char* destination, char* username, char* password, ssh_session myssh) {
+/*void sshConfig(Attempt attempt, char* destination, char* username, char* password, ssh_session myssh) {
     attempt.destination = destination;
     attempt.username = username;
     attempt.password = password;
@@ -174,4 +174,4 @@ char* getPassword(Attempt attempt) {
 
 ssh_session getSession(Attempt attempt) {
     return attempt.myssh;
-}
+}*/
