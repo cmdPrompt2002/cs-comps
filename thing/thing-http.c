@@ -20,7 +20,7 @@
 //http-post example ./thing -u bob@example.com -p bob -s 80 cs338.jeffondich.com/fdf/login http-post
 //http-post example ./thing -U usernames.txt -P passwords.txt -s 80 cs338.jeffondich.com/fdf/login http-post
 
-int http_main();
+int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile);
 int connect_to_serv(struct addrinfo *servinfo);
 
 int http_get_init();
@@ -63,7 +63,7 @@ int fullResponseSize;
 char *passPrefix;
 char *usrPrefix;
 char *body;
-int contentLength = 0;
+int reqContentLength = 0;
 int headersLength;
 regex_t *successCond = NULL;
 regex_t *failCond = NULL;
@@ -82,7 +82,7 @@ static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
 static char *decoding_table = NULL;
 static int mod_table[] = {0, 2, 1};
 
-int http_main() {
+int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
     host = malloc(sizeof(char)*(strlen(destination)+1));
     charPort = malloc((size_t)((ceil(log10(port))+1)*sizeof(char)));
     sprintf(charPort, "%d",port);
@@ -128,7 +128,7 @@ int http_main() {
                 if (!strncmp(startParam -2, "S=", 2)) {
                     successCond = (regex_t *) malloc(sizeof(regex_t));
                     strncpy(param,startParam,optionLength);
-                    printf("len: %lu, successCond: %s\n", strlen(param),param);
+                    printf("successCond: %s\n",param);
                     if (regcomp(successCond, param, REG_EXTENDED) == -1) {
                         fprintf(stderr, "Fails to compile successCond regex\n");
                         exit(1);
@@ -136,7 +136,7 @@ int http_main() {
                 } else if (!strncmp(startParam -2, "F=", 2)) {
                     failCond = (regex_t *) malloc(sizeof(regex_t));
                     strncpy(param,startParam,optionLength);
-                    printf("len: %lu, failCond: %s\n", strlen(param),param);
+                    printf("failCond: %s\n",param);
                     if (regcomp(failCond, param, REG_EXTENDED) == -1) {
                         fprintf(stderr, "Fails to compile failCond regex\n");
                         exit(1);
@@ -309,13 +309,14 @@ int http_post_init() {
     /*GET SERVER'S HTML*/ //The html contains the variable names required for authentication
 
     //Allocate buffer for html
-    char *authDetails = malloc(sizeof(char)*10000);
+    int authDetailsSize = 5000;
+    char *authDetails = malloc(sizeof(char)*authDetailsSize);
 
     //Send the HTTP request
     sprinkler_send();
 
     //Receive the server's response
-    authDetails = sprinkler_recv(0,authDetails,10000);
+    authDetails = sprinkler_recv(0,authDetails,authDetailsSize);
     //printf("%s\n",authDetails);
 
     /*PARSE SERVER'S HTML*/
@@ -450,17 +451,17 @@ int http_post_init() {
  
     }
     free(authDetails);
-    contentLength = strlen(body) + strlen(usrPrefix) + strlen(passPrefix) + 1;
+    reqContentLength = strlen(body) + strlen(usrPrefix) + strlen(passPrefix) + 1;
     headersLength = strlen(requestBuffer);
-    fullResponse = malloc(sizeof(char)*20000);
-    fullResponseSize = 20000;
+    fullResponseSize = 300;
+    fullResponse = malloc(sizeof(char)*fullResponseSize);
     return 0;
 }
 
 int http_post_attempt(char *usr, char *pass, regex_t *successCond, regex_t *failCond) {
     //Finalize the request buffer
     sprintf(requestBuffer + headersLength, "Content-Length: %lu\r\n\r\n%s%s%s&%s%s", 
-            contentLength + strlen(usr) + strlen(pass), body, usrPrefix, usr, passPrefix,pass);
+            reqContentLength + strlen(usr) + strlen(pass), body, usrPrefix, usr, passPrefix,pass);
 
     sprinkler_send();
     fullResponse = sprinkler_recv(0,fullResponse,fullResponseSize);
@@ -554,8 +555,8 @@ char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize) {
            exit(1);
         }
         fprintf(stderr,"recv failed. Try again...\n");
-        // close(sock);
-        // connect_to_serv(servinfo);
+        close(sock);
+        connect_to_serv(servinfo);
         sprinkler_send();
         sprinkler_recv(attempt + 1, fullResponse,fullResponseSize);
         

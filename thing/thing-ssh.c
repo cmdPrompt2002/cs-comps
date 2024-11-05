@@ -5,7 +5,7 @@
 #include <libssh/libssh.h>
 #include <pthread.h>
 
-void ssh_main();
+void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile);
 int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh);
 /* void sshOutput(int attemptStatus, ssh_session my_ssh);
 struct Attempt {
@@ -23,7 +23,7 @@ char* getPassword(Attempt attempt);
 ssh_session getSession(Attempt attempt);*/
 
 
-void ssh_main() {
+void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
     if (usrFilename != NULL && passFilename != NULL) {
         while (fgets(usr, 256, usrFile) != NULL) {
             if(usr[strlen(usr)-1] == '\n') {
@@ -89,7 +89,7 @@ Input:
     - my_ssh handler
 Output: int attemptStatus. Tells whether the auth is sucessful.
 */
-int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh) {
+int sshAttempt(char* destination, char* usr, char* pass, ssh_session my_ssh) {
     //Configure the options before making an SSH connection
     ssh_options_set(my_ssh, SSH_OPTIONS_HOST, destination);
     ssh_options_set(my_ssh, SSH_OPTIONS_PORT, &port);
@@ -107,7 +107,7 @@ int sshAttempt(char* destination, char* username, char* password, ssh_session my
     //printf("Successful connection\n");
     //printf("User:%s, Pass:%s\n", usr, pass);
     int attemptStatus = ssh_userauth_password(my_ssh, NULL, pass);
-    sshOutput(attemptStatus, my_ssh);
+    sshOutput(attemptStatus, my_ssh, usr, pass);
     ssh_disconnect(my_ssh);
     ssh_free(my_ssh);
     return attemptStatus;
@@ -141,7 +141,7 @@ int sshAttempt(char* destination, char* username, char* password, ssh_session my
     pthread_exit(attemptStatus);
 }*/
 
-void sshOutput(int attemptStatus, ssh_session my_ssh) {
+void sshOutput(int attemptStatus, ssh_session my_ssh, char *usr, char *pass) {
     if (attemptStatus == SSH_AUTH_SUCCESS) {
         printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
     } else if(attemptStatus == SSH_AUTH_DENIED) {

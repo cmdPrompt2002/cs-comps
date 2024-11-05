@@ -7,18 +7,19 @@
 #include "thing-ssh.h"
 #include <pthread.h>
 
-//Example command: ./thing ssh bandit.labs.overthewire.org -u bandit0 -P passwords.txt -s 2220
+//Example command: ./thing -U usernames.txt -P passwords.txt -s 2220 ssh bandit.labs.overthewire.org
 
 //Global variables
 char *service;
 char *destination;
 int port = -1;
-char *usr = NULL;
-char *usrFilename = NULL;
-char *pass = NULL;
-char *passFilename = NULL;
+char usr[256];
+char pass[256];
 FILE *usrFile;
 FILE *passFile;
+char *usrFilename = NULL;
+char *passFilename = NULL;
+
 int verbose = 0; //Three levels? 0,1,2
 int delay = 0;
 int threads = 0;
@@ -30,12 +31,9 @@ int main(int argc, char *argv[]) {
     int err = 0;
     char *errMsg = malloc(sizeof(char)*500);
     strcpy(errMsg, "Invalid usage:\n");
-    
-    usr = malloc(256*sizeof(char));
-    pass = malloc(256*sizeof(char));
-    
+
     /*Expected input:
-        name service destination [-s PORT] [-u USERNAMES] [-p PASSWORD] {more stuff later}
+        name [-u USERNAMES | -U UsernameFile] [-p PASSWORD | -P PasswordFile ] [-s PORT] [-d DELAYTIME] service destination {more stuff later}
         bandit.labs.overthewire.org
     */
     
@@ -50,7 +48,7 @@ int main(int argc, char *argv[]) {
                     port = atoi(optarg);
                     break;
                 case 'u':
-                    usr = optarg;
+                    strncpy(usr,optarg,256);
                     break;
                 case 'U':
                     usrFilename = optarg;
@@ -61,7 +59,7 @@ int main(int argc, char *argv[]) {
                     }
                     break;
                 case 'p':
-                    pass = optarg;
+                    strncpy(pass,optarg,256);
                     break;
                 case 'P':
                     passFilename = optarg;
@@ -196,8 +194,8 @@ int main(int argc, char *argv[]) {
     printf("Destination:%s\nPort:%i\nService:%s\n\n", destination,port,service);
 
     /*===Services===*/
-    if (!strcmp(service, "ssh")) {ssh_main();}
-    else if (!strncmp(service, "http",4)) {http_main();}
+    if (!strcmp(service, "ssh")) {ssh_main(usr,pass,usrFile,passFile);}
+    else if (!strncmp(service, "http",4)) {http_main(usr,pass,usrFile,passFile);}
     return 0;
 }
 

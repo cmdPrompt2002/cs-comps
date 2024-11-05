@@ -6,14 +6,11 @@
 extern char *service;
 extern char *destination;
 extern int port;
-extern char *usr;
 extern char *usrFilename;
-extern char *pass;
 extern char *passFilename;
-extern FILE *usrFile;
-extern FILE *passFile;
 
-int http_main();
+
+int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile);
 int connect_to_serv(struct addrinfo *servinfo);
 
 int http_get_init();

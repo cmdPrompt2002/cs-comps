@@ -118,4 +118,22 @@ How to parse the extra options attached to the destination
 - Can't strtok - the regcomp function accepts a char *pointer*, so need to copy just the option value and assign a new char *
 - Need strstr, and strncpy
 
-TODO: base64 function - malloc once, keep track of size, if size of new one exceed allocated memory, then realloc
+TODO: base64 function - malloc once, keep track of size, if size of new one exceed allocated memory, then realloc. NO. USE STACK MEM INSTEAD. DONE.
+
+## 11/04/24
+
+http-get-attempt uses stack frame for encodedPass instead of mallocing
+Fixed the recv function and http-post-init
+Attempted to change global vars to local vars, and heap mem to stack mem (pass and usr) to improve performance.
+
+Fixing recv error
+- Requestbuffer NOT the issue. Printed them out. Looks fine every time.
+- Connect NOT the issue
+- Send NOT the issue (although the strlen(requestBuffer) doesn't return what's expected)
+- Recv looks fine (maybe the issue is )
+
+TODO: replace requestBuffer with a struct that contains char* and strlength of the array, so don't have to use strlen wither every sprintf call
+
+Why http-post slower than get?
+- regexec slower than strstr?
+- More calls to global variables?
