@@ -7,6 +7,7 @@
 #include "thing-ssh.h"
 #include <pthread.h>
 
+
 //Example command: ./thing -U usernames.txt -P passwords.txt -s 2220 ssh bandit.labs.overthewire.org
 
 //Global variables
@@ -20,9 +21,11 @@ FILE *passFile;
 char *usrFilename = NULL;
 char *passFilename = NULL;
 
+//Extra options
 int verbose = 0; //Three levels? 0,1,2
 int delay = 0;
 int threads = 0;
+int tls = 0;
 
 //Candidate names: Decided on Sprinkler
 /*Command line parsing*/
@@ -33,15 +36,36 @@ int main(int argc, char *argv[]) {
     strcpy(errMsg, "Invalid usage:\n");
 
     /*Expected input:
-        name [-u USERNAMES | -U UsernameFile] [-p PASSWORD | -P PasswordFile ] [-s PORT] [-d DELAYTIME] service destination {more stuff later}
-        bandit.labs.overthewire.org
+        sprinkler [-u USERNAMES | -U FILE] [-p PASSWORD | -P FILE] [-s PORT] service target
+
+        Mandatory options
+            target      a target to attack, can be an IPv4 address or DNS name
+            service     the service to attack. Type 'sprinkler -h services' to list the protocols available
+            
+            -s PORT     
+                if the service is on a different default port, define it here
+            -u USERNAME
+                supply a login username, or -U FILE to supply a username list
+            -p PASSWORD
+                supply a password, or -P FILE to supply a password list
+
+        Extra options
+            -S connect via SSL
+            -d DELAY
+                set a delay time between each login attempt
+            -b NUMBYTES
+                Set the size of the buffer holding the server's response per login attempt. 
+                Buffer should be larger than server's response.
+            -v / -V
+                Verbose Prints out all 
+            
     */
     
     //Command line parsing
     int opt;
     printf("optind: %i, arg: %s\n", optind, argv[optind]);
     while (optind < argc) {
-        if ((opt = getopt(argc, argv, ":s:u:p:U:P:v:d:t:")) != -1) {
+        if ((opt = getopt(argc, argv, ":s:u:p:U:P:v:d:t:S")) != -1) {
             printf("optind: %i, arg: %s\n", optind, argv[optind]);
             switch (opt) {
                 case 's':
@@ -77,6 +101,9 @@ int main(int argc, char *argv[]) {
                     break;
                 case 't':
                     threads = 1;
+                    break;
+                case 'S':
+                    tls = 1;
                     break;
                 case ':':
                     sprintf(errMsg,"    Option -%c requires an argument\n", optopt);
@@ -186,62 +213,79 @@ int main(int argc, char *argv[]) {
     //     }
     // }
 
-    // printf("Passed command line checking\n");
+    //Get module specific options
+    int responseCheck = -1; //1 = failCond, 0 = successCond
+    regex_t *checkStr = NULL;
+    char *startParam = strstr(destination,"::"); 
+    if (startParam != NULL) {
+        char *endParam = strstr(startParam+2,"::");
+        startParam[0] = '\0'; //to separate the directory from user input options
+        char *param = malloc(sizeof(char)*20);
+        int optionLength;
+        int optSize = 20;
 
-    // store location for threads
+        while (startParam != NULL) {
+            startParam += 4; //points to first idx of option value
+            if (endParam == NULL) { optionLength = strlen(startParam) + 1; }  
+            else { optionLength = endParam - startParam; }
+
+            if (optionLength > optSize) {
+                    param = (char *) realloc(param,optionLength); //Null terminator included
+                    optSize = optionLength;
+                }
+
+            if (!strncmp(startParam -2, "S=", 2)) {
+
+                if (checkStr != NULL) {
+                    fprintf(stderr, "[ERROR] Can only accept either success condtion S failure condition F or neither\n");
+                    exit(1);
+                } 
+                
+                checkStr = (regex_t *) malloc(sizeof(regex_t));
+                strncpy(param,startParam,optionLength);
+                printf("successCond: %s\n",param);
+                if (regcomp(checkStr, param, REG_EXTENDED) == -1) {
+                    fprintf(stderr, "Fails to compile successCond regex\n");
+                    exit(1);
+                }
+                responseCheck = 1;
+            } else if (!strncmp(startParam -2, "F=", 2)) {
+
+                if (checkStr != NULL) {
+                    fprintf(stderr, "[ERROR] Can only accept either success condtion S failure condition F or neither\n");
+                    exit(1);
+                } 
+
+                checkStr = (regex_t *) malloc(sizeof(regex_t));
+                strncpy(param,startParam,optionLength);
+                printf("failCond: %s\n",param);
+                if (regcomp(checkStr, param, REG_EXTENDED) == -1) {
+                    fprintf(stderr, "Fails to compile failCond regex\n");
+                    exit(1);
+                }
+
+                responseCheck = 0;
+
+            } else {
+                *(startParam -1) = '\0' ;
+                fprintf(stderr, "Unrecognized parameter: %s\nType 'sprinkler -U [service]' for correct usage\n",startParam-2);
+                exit(1);
+            }
+
+            startParam = strstr(startParam, "::");
+            if (startParam != NULL) {
+                endParam = strstr(startParam+2, "::");
+            }
+
+        }
+        free(param);
+    }
 
     printf("\n---IT'S SPRAYIN TIME---\n\n");
     printf("Destination:%s\nPort:%i\nService:%s\n\n", destination,port,service);
 
     /*===Services===*/
     if (!strcmp(service, "ssh")) {ssh_main(usr,pass,usrFile,passFile);}
-    else if (!strncmp(service, "http",4)) {http_main(usr,pass,usrFile,passFile);}
+    else if (!strncmp(service, "http",4)) {http_main(usr,pass,usrFile,passFile,tls, checkStr, responseCheck);}
     return 0;
 }
-
-/*
-Input:
-    - destination: IP address or hostname to attack
-    - username and password for SSH login
-    - my_ssh handler
-Output: int attemptStatus. Tells whether the auth is sucessful.
-*/
-// int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh) {
-//     //Configure the options before making an SSH connection
-//     ssh_options_set(my_ssh, SSH_OPTIONS_HOST, destination);
-//     ssh_options_set(my_ssh, SSH_OPTIONS_PORT, &port);
-//     ssh_options_set(my_ssh, SSH_OPTIONS_USER, usr);
-    
-//     //Connect to SSH server
-//     int rc = ssh_connect(my_ssh);
-//     if (rc != SSH_OK) {
-//         fprintf(stderr, "Error connecting to host: %s\n",
-//             ssh_get_error(my_ssh));
-//         ssh_free(my_ssh);
-//         exit(-1);
-//     }
-
-//     //printf("Successful connection\n");
-//     //printf("User:%s, Pass:%s\n", usr, pass);
-//     int attemptStatus = ssh_userauth_password(my_ssh, NULL, pass);
-//     sshOutput(attemptStatus, my_ssh);
-//     return attemptStatus;
-// }
-
-// void sshOutput(int attemptStatus, ssh_session my_ssh) {
-//     if (attemptStatus == SSH_AUTH_SUCCESS) {
-//         printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
-//         ssh_disconnect(my_ssh);
-//     } else if(attemptStatus == SSH_AUTH_DENIED) {
-//         printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
-//         ssh_disconnect(my_ssh);
-//     } else {
-//         fprintf(stderr, "Error authenticating with password: %s\n",
-//         ssh_get_error(my_ssh));
-//         ssh_disconnect(my_ssh);
-//     }
-    
-//     ssh_free(my_ssh); //Do we really wanna free and allocate new ssh_session every time?
-
-//     return;
-// }

@@ -43,7 +43,7 @@ void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
                 //     if(pthread_create(&tID, NULL, threadAttempt, &attempt) == SSH_AUTH_SUCCESS) {
                 //         break;
                 //     }
-                // }
+                // }        Less point in checking attempts after we get a success with multithreading, can just skip that part. Also doesn't work well wtih pthreads. So just loop creating threads and kill them when they print result.
                 if (sshAttempt(destination, usr, pass, my_ssh) == SSH_AUTH_SUCCESS) {
                     break;
                 }   

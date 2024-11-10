@@ -1,8 +1,11 @@
-cs338
-qwrqwr
 bandit0
-yu3y2
-t2t2t
-23u5546j
 bob@example.com
 alice@example.com
+cs338
+cat
+dog
+mouse
+emu
+horse
+bat
+user

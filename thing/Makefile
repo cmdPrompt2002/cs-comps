@@ -6,7 +6,7 @@ CFLAGS = -g
 all: thing
 
 thing: $(OBJS)
-	$(CC) $(CFLAGS) -rpath ./prompt_ssh/ -lssh $^ -o $@
+	$(CC) $(CFLAGS) -rpath ./prompt_ssh/ -lssh -lssl -lcrypto $^ -o $@
 	rm -f *.o
 
 thing2: #Sam's compiler

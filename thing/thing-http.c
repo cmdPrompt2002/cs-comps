@@ -5,10 +5,18 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <math.h>
 #include <errno.h>
 #include <regex.h>
+
+#include <poll.h>
+
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+// #include <openssl/types.h>
 
 #include "thing-http.h"
 
@@ -19,19 +27,26 @@
 //http-get example ./thing -U usernames.txt -P passwords.txt -s 80 cs338.jeffondich.com/basicauth/ http-get
 //http-post example ./thing -u bob@example.com -p bob -s 80 cs338.jeffondich.com/fdf/login http-post
 //http-post example ./thing -U usernames.txt -P passwords.txt -s 80 cs338.jeffondich.com/fdf/login http-post
+// en.wikipedia.org/wiki/Special:UserLogin
+// ./thing -U usernames.txt -P passwords.txt -s 443 -S authenticationtest.com/HTTPAuth/ http-get
+// ./thing -U usernames.txt -P passwords.txt -s 443 -S authenticationtest.com/HTTPAuth/::F=$'Location:[^\r\n]*loginFail/\r\n' http-get
 
-int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile);
-int connect_to_serv(struct addrinfo *servinfo);
+int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, regex_t *checkStr, int responseCheck);
+int sprinkler_connect(struct addrinfo *servinfo);
+SSL *sprinkler_tls_connect(SSL_CTX *ctx);
 
 int http_get_init();
 int http_post_init();
 
-int http_attempt(char *usr, char *pass);
-int http_get_attempt(char *usr, char *pass);
-int http_post_attempt(char *usr, char *pass, regex_t *successCond, regex_t *failCond);
+int http_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int responseCheck);
+int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int responseCheck);
+int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int responseCheck);
 
 void sprinkler_send();
+void sprinkler_tls_send(SSL *ssl);
 char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize);
+void sprinkler_recv_2(char *fullResponse, int fullResponseSize, int receiveAll);
+void sprinkler_tls_recv(char *fullResponse, int fullResponseSize,int receiveAll);
 
 char *to_base64(const unsigned char *data, size_t input_length, char *encoded_data);
 
@@ -68,7 +83,9 @@ int headersLength;
 regex_t *successCond = NULL;
 regex_t *failCond = NULL;
 
-
+//TLS 
+SSL_CTX *ctx = NULL;
+SSL *ssl = NULL;
 
 //Base64 global vars (from https://stackoverflow.com/questions/342409/how-do-i-base64-encode-decode-in-c)
 static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
@@ -82,7 +99,7 @@ static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
 static char *decoding_table = NULL;
 static int mod_table[] = {0, 2, 1};
 
-int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
+int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, regex_t *checkStr, int responseCheck) {
     host = malloc(sizeof(char)*(strlen(destination)+1));
     charPort = malloc((size_t)((ceil(log10(port))+1)*sizeof(char)));
     sprintf(charPort, "%d",port);
@@ -95,7 +112,7 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
         charPtr++;
     }
 
-    //Dir to GET from
+    //Dir to send logins to
     dir = strstr(destination, "/");
     
     //Set the Host header and finalize the dir
@@ -106,70 +123,97 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
         int dirIdx = dir - destination;
         strncpy(host,destination,dirIdx+1);
         host[dirIdx] = '\0';
-
-        char *startParam = strstr(dir,"::"); 
-        if (startParam != NULL) {
-            char *endParam = strstr(startParam+2,"::");
-            startParam[0] = '\0'; //to separate the directory from user input options
-            char *param = malloc(sizeof(char)*20);
-            int optionLength;
-            int optSize = 20;
-
-            while (startParam != NULL) {
-                startParam += 4; //points to first idx of option value
-                if (endParam == NULL) { optionLength = strlen(startParam) + 1; }  
-                else { optionLength = endParam - startParam; }
-
-                if (optionLength > optSize) {
-                        param = (char *) realloc(param,optionLength); //Null terminator included
-                        optSize = optionLength;
-                    }
-
-                if (!strncmp(startParam -2, "S=", 2)) {
-                    successCond = (regex_t *) malloc(sizeof(regex_t));
-                    strncpy(param,startParam,optionLength);
-                    printf("successCond: %s\n",param);
-                    if (regcomp(successCond, param, REG_EXTENDED) == -1) {
-                        fprintf(stderr, "Fails to compile successCond regex\n");
-                        exit(1);
-                    }
-                } else if (!strncmp(startParam -2, "F=", 2)) {
-                    failCond = (regex_t *) malloc(sizeof(regex_t));
-                    strncpy(param,startParam,optionLength);
-                    printf("failCond: %s\n",param);
-                    if (regcomp(failCond, param, REG_EXTENDED) == -1) {
-                        fprintf(stderr, "Fails to compile failCond regex\n");
-                        exit(1);
-                    }
-                } else {
-                    *(startParam -1) = '\0' ;
-                    fprintf(stderr, "Unrecognized parameter: %s\nType 'sprinkler -U [service]' for correct usage\n",startParam-2);
-                    exit(1);
-                }
-
-                startParam = strstr(startParam, "::");
-                if (startParam != NULL) {
-                    endParam = strstr(startParam+2, "::");
-                }
-
-            }
-            free(param);
-        }
-    
     }
 
-    //Prepare the socket
+    // //Get module specific options
+    // char *startParam = strstr(destination,"::"); 
+    // if (startParam != NULL) {
+    //     char *endParam = strstr(startParam+2,"::");
+    //     startParam[0] = '\0'; //to separate the directory from user input options
+    //     char *param = malloc(sizeof(char)*20);
+    //     int optionLength;
+    //     int optSize = 20;
+
+    //     while (startParam != NULL) {
+    //         startParam += 4; //points to first idx of option value
+    //         if (endParam == NULL) { optionLength = strlen(startParam) + 1; }  
+    //         else { optionLength = endParam - startParam; }
+
+    //         if (optionLength > optSize) {
+    //                 param = (char *) realloc(param,optionLength); //Null terminator included
+    //                 optSize = optionLength;
+    //             }
+
+    //         if (!strncmp(startParam -2, "S=", 2)) {
+    //             successCond = (regex_t *) malloc(sizeof(regex_t));
+    //             strncpy(param,startParam,optionLength);
+    //             printf("successCond: %s\n",param);
+    //             if (regcomp(successCond, param, REG_EXTENDED) == -1) {
+    //                 fprintf(stderr, "Fails to compile successCond regex\n");
+    //                 exit(1);
+    //             }
+    //         } else if (!strncmp(startParam -2, "F=", 2)) {
+    //             failCond = (regex_t *) malloc(sizeof(regex_t));
+    //             strncpy(param,startParam,optionLength);
+    //             printf("failCond: %s\n",param);
+    //             if (regcomp(failCond, param, REG_EXTENDED) == -1) {
+    //                 fprintf(stderr, "Fails to compile failCond regex\n");
+    //                 exit(1);
+    //             }
+    //         } else {
+    //             *(startParam -1) = '\0' ;
+    //             fprintf(stderr, "Unrecognized parameter: %s\nType 'sprinkler -U [service]' for correct usage\n",startParam-2);
+    //             exit(1);
+    //         }
+
+    //         startParam = strstr(startParam, "::");
+    //         if (startParam != NULL) {
+    //             endParam = strstr(startParam+2, "::");
+    //         }
+
+    //     }
+    //     free(param);
+    // }
+    
+    // if (successCond != NULL && failCond != NULL) {
+    //     fprintf(stderr, "[ERROR] Can only accept either success condtion S failure condition F or neither\n");
+    //     exit(1);
+    // }
+
+    //Get server information into servinfo
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;     // Accepts both ipv4 and ipv6 protocols
     hints.ai_socktype = SOCK_STREAM; // Use TCP, not UDP
 
     if ((status = getaddrinfo(host, charPort, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
+        fprintf(stderr, "[ERROR] getaddrinfo error: %s\n", gai_strerror(status));
         exit(1);
     }
 
     //Connect to server
-    connect_to_serv(servinfo);
+    sprinkler_connect(servinfo);
+
+    //If using tls, then initialize necessary openssl variables
+
+    if (tls) {
+        ctx = SSL_CTX_new(TLS_client_method());
+        if (ctx == NULL) {
+            fprintf(stderr,"Failed to create the SSL_CTX\n");
+            exit(1);
+        }
+
+        SSL_CTX_set_options(ctx, SSL_OP_ALL);
+
+        if (!SSL_CTX_set_default_verify_paths(ctx)) {
+            fprintf(stderr,"Failed to set the default trusted certificate store\n");
+            exit(1);
+        }
+        
+        //Don't care about server's certificate, so SSL_VERIFY_NONE
+        SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+        ssl = sprinkler_tls_connect(ctx); 
+    }
+    
 
     //Initialize required vars for each service
     if (!strcmp(type,"GET")) {
@@ -190,7 +234,7 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
                 // Replace new line with null to mark end of password
                 if(pass[strlen(pass)-1] == '\n') 
                     pass[strlen(pass)-1] = '\0';
-                attemptStatus = http_attempt(usr,pass);
+                attemptStatus = http_attempt(usr,pass,tls, checkStr, responseCheck);
                 if (attemptStatus == HTTP_AUTH_SUCCESS) 
                     break;
                  
@@ -202,25 +246,32 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
     } else if (usrFilename != NULL) {
         while (fgets(pass, 256, passFile) != NULL) {
             if (pass[strlen(pass)-1] == '\n') {pass[strlen(pass)-1] = '\0';}
-            attemptStatus = http_attempt(usr,pass);
+            attemptStatus = http_attempt(usr,pass,tls,checkStr, responseCheck);
             if (attemptStatus == HTTP_AUTH_SUCCESS) {break;} 
             
         }
     } else if (passFilename != NULL) {
         while (fgets(pass, 256, usrFile) != NULL) {
             if (pass[strlen(pass)-1] == '\n') {pass[strlen(pass)-1] = '\0';}
-            attemptStatus = http_attempt(usr,pass);
+            attemptStatus = http_attempt(usr,pass,tls,checkStr, responseCheck);
             if (attemptStatus == HTTP_AUTH_SUCCESS) {break;} 
             
         }
     } else {
-        attemptStatus = http_attempt(usr,pass);
+        attemptStatus = http_attempt(usr,pass,tls,checkStr, responseCheck);
     }
     freeaddrinfo(servinfo);
+    if (!tls) {
+        close(sock);
+    } else {
+        //Close with openssl function
+    }
+    
     return 0;
 }
 
-int connect_to_serv(struct addrinfo *servinfo) {
+int sprinkler_connect(struct addrinfo *servinfo) {
+
     //Connect to the destination (don't care if ipv4 or ipv6)
     struct addrinfo *p;
     for (p = servinfo; p != NULL; p = p->ai_next) {
@@ -228,8 +279,14 @@ int connect_to_serv(struct addrinfo *servinfo) {
         if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == -1) {
             continue;
         }
+
+        //Set the socket to non-blocking mode
+        // if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0) {
+        //     fprintf(stderr,"fcntl failed");
+        //     exit(1);
+        // }
         
-        if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
+        if (connect(sock, p->ai_addr, p->ai_addrlen) == -1 && errno != EINPROGRESS) {
             continue;
         }
         break;
@@ -242,13 +299,50 @@ int connect_to_serv(struct addrinfo *servinfo) {
     return 0;
 }
 
-int http_attempt(char *usr, char *pass) {
+SSL *sprinkler_tls_connect(SSL_CTX *ctx) {
+
+    int err;
+    
+    SSL *ssl = SSL_new(ctx);
+    if (ssl == NULL) {
+        fprintf(stderr,"Failed to create the SSL object\n");
+        SSL_clear(ssl);
+        exit(1);
+    }
+
+    SSL_set_bio(ssl, NULL, NULL);
+
+    /*
+    * Tell the server during the handshake which hostname we are attempting
+    * to connect to in case the server supports multiple hosts. SNI = server name indication
+    */
+    if (!SSL_set_tlsext_host_name(ssl, host)) {
+        fprintf(stderr,"Failed to set the SNI hostname\n");
+        exit(1);
+    }
+
+    if (!SSL_set_fd(ssl,sock)) {
+        fprintf(stderr,"SSL_set_fd failed.\n");
+        exit(1);
+    }
+
+    /* Do the TLS handshake with the server */
+    if (SSL_connect(ssl) < 1) {
+        err = ERR_get_error();
+        fprintf(stderr, "Failed to connect to server: %s\n", ERR_error_string(err, NULL));
+        exit(1);
+    }
+
+    return ssl;
+}
+
+int http_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int responseCheck) {
 
     //Finalize the request buffer for each service
     if (!strcmp(type, "GET")) {
-        return http_get_attempt(usr,pass);
+        return http_get_attempt(usr, pass, tls, checkStr, responseCheck);
     } else if (!strcmp(type,"POST")) {
-        return http_post_attempt(usr,pass, successCond, failCond);
+        return http_post_attempt(usr,pass, tls, checkStr, responseCheck);
     } else {
         fprintf(stderr, "Service %s unrecognized\n",service);
         exit(1);
@@ -259,16 +353,15 @@ int http_attempt(char *usr, char *pass) {
 int http_get_init() {
     passBuffer = malloc(sizeof(char)*512); //stores "username:password" in unencoded plaintext
     requestBuffer = malloc(sizeof(char)*700);
-    fullResponse = malloc(sizeof(char)*100);
-    fullResponseSize = 100;
+    fullResponseSize = 5000;
+    fullResponse = malloc(sizeof(char)*fullResponseSize);
     return 0;
 }
 //Assumes basic auth
-int http_get_attempt(char *usr, char*pass) {
+int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int responseCheck) {
     
     //Concat usr and pass for base64 encoding
     sprintf(passBuffer,"%s:%s",usr,pass);
-    // printf("passBuffer: %s\n",passBuffer);
     
     //To base64
     size_t input_length = strlen(passBuffer);
@@ -276,24 +369,58 @@ int http_get_attempt(char *usr, char*pass) {
     char encodedPass[output_length + 1]; //Stores the base64 encoding of "username:password"
     to_base64((const unsigned char *)passBuffer, input_length, encodedPass) ;
 
-    // printf("%s\n",encodedPass);
-
+   //Finalize the request buffer
     sprintf(requestBuffer,
               "%s %.250s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 "
                 "(Thing)\r\nConnection: "
                 "keep-alive\r\nAuthorization: Basic %.*s\r\n\r\n",
               type, dir, host, (int)output_length, encodedPass);
 
-    sprinkler_send();
-    sprinkler_recv(0,fullResponse,fullResponseSize);
-
-    if (strstr(fullResponse,"HTTP/1.1 2") != NULL) {
-        printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
-        return HTTP_AUTH_SUCCESS;
+    if (tls) {
+        sprinkler_tls_send(ssl);
+        sprinkler_tls_recv(fullResponse, fullResponseSize, 0);
+        // printf("%s\n",fullResponse);
     } else {
-        printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
-        return HTTP_AUTH_FAILURE;
+        sprinkler_send();
+        sprinkler_recv_2(fullResponse, fullResponseSize, 0);
+        //sprinkler_recv(0,fullResponse,fullResponseSize);
+        // printf("%s\n",fullResponse);
     }
+    
+    int ret;
+    if (responseCheck == 1) {
+        if ((ret = regexec(checkStr,fullResponse, 0,NULL, 0)) == 0) {
+            printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
+            return HTTP_AUTH_SUCCESS;
+        } else if (ret == REG_NOMATCH) {
+            printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
+            return HTTP_AUTH_FAILURE;
+        } else {
+            fprintf(stderr, "Regexec of successCond failed\n");
+            exit(1);
+        }
+
+    } else if (responseCheck == 0) {
+        if ((ret = regexec(checkStr,fullResponse, 0,NULL, 0)) == 0) {
+            printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
+            return HTTP_AUTH_FAILURE;
+        } else if (ret == REG_NOMATCH) {
+            printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
+            return HTTP_AUTH_SUCCESS;
+        } else {
+            fprintf(stderr, "Regexec of failCond failed\n");
+            exit(1);
+        }
+    } else {
+        if (strstr(fullResponse,"HTTP/1.1 2") != NULL) {
+            printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
+            return HTTP_AUTH_SUCCESS;
+        } else {
+            printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
+            return HTTP_AUTH_FAILURE;
+        }
+    }
+    
 }
 
 int http_post_init() {
@@ -309,14 +436,16 @@ int http_post_init() {
     /*GET SERVER'S HTML*/ //The html contains the variable names required for authentication
 
     //Allocate buffer for html
-    int authDetailsSize = 5000;
+    int authDetailsSize = 10000;
     char *authDetails = malloc(sizeof(char)*authDetailsSize);
 
     //Send the HTTP request
+    printf("HERE\n");
     sprinkler_send();
 
     //Receive the server's response
-    authDetails = sprinkler_recv(0,authDetails,authDetailsSize);
+    sprinkler_recv_2(authDetails, authDetailsSize, 0);
+    //authDetails = sprinkler_recv(0,authDetails,authDetailsSize);
     //printf("%s\n",authDetails);
 
     /*PARSE SERVER'S HTML*/
@@ -453,44 +582,48 @@ int http_post_init() {
     free(authDetails);
     reqContentLength = strlen(body) + strlen(usrPrefix) + strlen(passPrefix) + 1;
     headersLength = strlen(requestBuffer);
-    fullResponseSize = 300;
+    fullResponseSize = 5000;
     fullResponse = malloc(sizeof(char)*fullResponseSize);
     return 0;
 }
 
-int http_post_attempt(char *usr, char *pass, regex_t *successCond, regex_t *failCond) {
+int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int responseCheck) {
     //Finalize the request buffer
     sprintf(requestBuffer + headersLength, "Content-Length: %lu\r\n\r\n%s%s%s&%s%s", 
             reqContentLength + strlen(usr) + strlen(pass), body, usrPrefix, usr, passPrefix,pass);
 
     sprinkler_send();
-    fullResponse = sprinkler_recv(0,fullResponse,fullResponseSize);
+    sprinkler_recv_2(fullResponse,fullResponseSize, 0);
+    //sprinkler_recv(0,fullResponse,fullResponseSize);
 
     //Check whether response contains successCond or failCond. 
     //If neither conds are supplied by the user, 
     //then success if server returns a 3XX status code with a location header that's different from the directory in the request
-    if (successCond != NULL && failCond != NULL) {
-        fprintf(stderr, "Can only accept either success condtion S or failure condition F or neither\n");
-        exit(1);
-
-    } else if (successCond != NULL) {
+    int ret;
+    if (responseCheck == 1) {
         
-        if (regexec(successCond,fullResponse, 0,NULL, 0) == 0) {
+        if ((ret = regexec(checkStr,fullResponse, 0,NULL, 0)) == 0) {
             printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
             return HTTP_AUTH_SUCCESS;
-        } else {
+        } else if (ret == REG_NOMATCH) {
             printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
             return HTTP_AUTH_FAILURE;
+        } else {
+            fprintf(stderr, "regexec of successCond failed\n");
+            exit(1);
         }
 
-    } else if (failCond != NULL) {
+    } else if (responseCheck == 0) {
 
-        if (regexec(failCond,fullResponse, 0,NULL, 0) == 0) {
+        if ((ret = regexec(checkStr,fullResponse, 0,NULL, 0)) == 0) {
             printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
             return HTTP_AUTH_FAILURE;
-        } else {
+        } else if (ret == REG_NOMATCH) {
             printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
             return HTTP_AUTH_SUCCESS;
+        } else {
+            fprintf(stderr, "regexec of successCond failed\n");
+            exit(1);
         }
 
     } else {
@@ -533,20 +666,171 @@ int http_post_attempt(char *usr, char *pass, regex_t *successCond, regex_t *fail
 }
 
 void sprinkler_send() {
-    
     //Send the HTTP request
-    bytes_sent = send(sock, requestBuffer, strlen(requestBuffer), 0);
+    int requestLength = strlen(requestBuffer);
+    bytes_sent = send(sock, requestBuffer, requestLength, 0);
     //printf("%s\n\n\n\n",requestBuffer);
-    if (bytes_sent != strlen(requestBuffer)) {
+    if (bytes_sent == -1) {
+        fprintf(stderr, "Failed to send the HTTP request\n");
+        exit(1);
+    } else if (bytes_sent != requestLength) {
         fprintf(stderr,"Request buffer too large to send in one go\nPrompt needs to make better code\n");
         exit(1);
     }
+    
 }
+
+void sprinkler_tls_send(SSL *ssl) {
+    size_t written;
+    size_t requestLength = strlen(requestBuffer);
+
+    //Send the HTTP request
+    if (!SSL_write_ex(ssl, requestBuffer, requestLength, &written)) {
+        fprintf(stderr, "Failed to send HTTP request using TLS\n");
+        exit(1);
+    } else if (written != requestLength) {
+        fprintf(stderr,"Request buffer too large to send in one go\nPrompt needs to make better code\n");
+        exit(1);
+    }
+    
+}
+
+/* void sprinkler_recv_2: call recv with MSG_WAITALL flag
+INPUTS
+    * char *fullResponse: pointer to the buffer that stores at least *minBytesExpected* bytes from the server
+    * int fullResponseSize: total number of bytes allocated for *fullResponse*
+    * int receiveAll:
+            1: get the Content-Length header value use that to read everything from the server's response.
+               If the server's response > fullResponseSize, then only read up to fullResponseSize -1.
+            0: Always read up to fullResponseSize -1
+*/
+void sprinkler_recv_2(char *fullResponse, int fullResponseSize, int receiveAll) {
+
+    /*Bytes received from a single call to recv*/
+    int bytesReceived = 0;
+
+    /*Cumulative no. of bytes received*/
+    int totalBytesReceived = 0;
+
+    /* Bytes to read from responseBuffer (small buffer for each call to recv))
+     * into fullResponse (larger buffer for everything received)*/
+    int bytesToRead = fullResponseSize - 1; 
+
+    /*How many time has recv returns a non-normal value*/
+    int numFails = 0;
+
+    /*If minBytesExpected = -1, this stores the value of the Content-Length header*/
+    int contentLength = -1;
+
+    /*If true, then should receive all of the server's response or up to fullResponseSize*/
+    if (receiveAll == 1) {
+
+        //Make one call to get the Content-Length header value
+        while ((bytesReceived = recv(sock, responseBuffer, MAX_RESPONSE_SIZE-1, 0) <= 0)) {
+            close(sock);
+            if (numFails > 3) {
+                fprintf(stderr,"Reattempts failed.\n");
+                exit(1);
+            }
+
+            if (bytesReceived == -1) 
+                fprintf(stderr,"sprinkler_recv: recv failed. Reattempting...\n");
+            else if (bytesReceived == 0)
+                fprintf(stderr,"sprinkler_recv: connection closed prematurely. Reattempting...\n");
+
+            sprinkler_connect(servinfo);
+            sprinkler_send();
+            numFails++;
+        }
+
+        responseBuffer[bytesReceived] = '\0';
+        sprintf(fullResponse, "%.*s", bytesToRead, responseBuffer);
+        totalBytesReceived += bytesReceived;
+
+        if (bytesReceived + 1 == fullResponseSize) {
+            return;
+        }
+        
+        //Compile the regex and find the Content-Length value 
+        regex_t regex;
+        regmatch_t match[2];
+        
+        char *contentLengthString = "Content-Length: ([^\r\n]*)\r\n"; 
+        if (regcomp(&regex, contentLengthString ,REG_EXTENDED) != 0) {
+            fprintf(stderr, "Could not compile contentLength regex\n");
+            exit(1);
+        }
+        
+        int regexResult = regexec(&regex, fullResponse, 2, match, 0);
+        if (regexResult == 0) {
+            fullResponse[match[1].rm_eo] = '\0';
+            contentLength = atoi(fullResponse + match[1].rm_so);
+            // printf("Content-Length: %i",contentLength);
+            fullResponse[match[1].rm_eo] = '\r';
+             
+        } else if (regexResult == REG_NOMATCH) {
+            fprintf(stderr,"Can't find Content-Length header.\n");
+            exit(1);
+        } else {
+            fprintf(stderr,"Regexec of contentLengthString failed\n");
+            exit(1);
+        }
+
+        //Find out how much of the body is read, and adjust contentLength accordingly
+        int numHeaderBytes =  strstr(fullResponse, "\r\n\r\n") + 3 - fullResponse + 1; //Correct
+        int numContentBytesRead = totalBytesReceived - numHeaderBytes; //Correct
+        contentLength -= numContentBytesRead; 
+
+        //Adjust the remaining bytesToRead. Triple checked. Correct.
+        if (contentLength < fullResponseSize - totalBytesReceived) {
+            bytesToRead = contentLength;
+        } else {
+            bytesToRead = fullResponseSize - totalBytesReceived -1;
+        }
+
+        
+    }
+
+    //Receive the rest of the response
+    
+    while ((bytesReceived = recv(sock, fullResponse + totalBytesReceived, bytesToRead, 0)) <= 0) {
+        
+        close(sock);
+        if (numFails > 3) {
+            fprintf(stderr,"Reattempts failed.\n");
+            exit(1);
+        }
+        
+        if (bytesReceived == -1) 
+            fprintf(stderr,"sprinkler_recv: recv failed. Reattempting...\n");
+        else if (bytesReceived == 0)
+            fprintf(stderr,"sprinkler_recv: connection closed prematurely. Reattempting...\n");
+
+        sprinkler_connect(servinfo);
+        sprinkler_send();
+        numFails++;
+    }
+    totalBytesReceived += bytesReceived;
+    fullResponse[totalBytesReceived] = '\0'; //Checked. Don't worry, this won't segfault.
+    
+    // while((bytesReceived = read(sock, responseBuffer, MAX_RESPONSE_SIZE)) != 0) {
+    //     printf("HERE\n");
+    //     printf("%i\n",bytesReceived);
+    //     if (bytesReceived == -1) {
+    //         fprintf(stderr, "Recv failed\n");
+    //         exit(1);
+    //     } 
+    // }
+    
+}
+
+//Option 1: keep it as is, but fullResponse should hold everything (user supplies value). If total bytes are not known, then connection: close
+//Option 2: change the while loop: recv into responseBuffer
 
 char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize) {
     //Receive the server's response
     // printf("Entered recv\n");
-    int bytesReceived = recv(sock, responseBuffer, MAX_RESPONSE_SIZE-1, 0);
+    int bytesReceived = recv(sock, responseBuffer,MAX_RESPONSE_SIZE-1, 0);
     if (bytesReceived == -1) {
         
         if (attempt > 3) {
@@ -556,7 +840,7 @@ char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize) {
         }
         fprintf(stderr,"recv failed. Try again...\n");
         close(sock);
-        connect_to_serv(servinfo);
+        sprinkler_connect(servinfo);
         sprinkler_send();
         sprinkler_recv(attempt + 1, fullResponse,fullResponseSize);
         
@@ -567,7 +851,7 @@ char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize) {
         }
         printf("Connection closed. Try again...\n");
         close(sock);
-        connect_to_serv(servinfo);
+        sprinkler_connect(servinfo);
         sprinkler_send();
         sprinkler_recv(attempt + 1, fullResponse, fullResponseSize);
     } else { //Server's response received. But need to determine if there's more to receive.
@@ -620,7 +904,7 @@ char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize) {
                 int i = 0;
                 while (1) {
                     close(sock);
-                    connect_to_serv(servinfo);
+                    sprinkler_connect(servinfo);
                     sprinkler_send();
                     bytesReceived = recv(sock, responseBuffer, MAX_RESPONSE_SIZE-1, 0);
                     if (bytesReceived > 0) {
@@ -653,6 +937,46 @@ char *sprinkler_recv(int attempt, char *fullResponse, int fullResponseSize) {
     return fullResponse;
 }
 
+void sprinkler_tls_recv(char *fullResponse, int fullResponseSize, int receiveAll) {
+    size_t bytesReceived;
+    int totalBytesReceived = 0;
+    int retValue = 0;
+    int err = 0;
+    int numFails = 0;
+
+    if (receiveAll) {
+
+
+    }
+
+    while ((retValue = SSL_read_ex(ssl, fullResponse, fullResponseSize - 1, &bytesReceived)) <= 0) {
+
+        if (numFails > 3) {
+            fprintf(stderr, "sprinkler_tls_recv failed\n");
+            exit(1);
+        }
+
+        //ADD if (verbose)
+        err = SSL_get_error(ssl,retValue);
+        if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
+            printf("[VERBOSE] sprinkler_tls_recv: connection closed prematurely. Reattempting...\n");  
+        } else {
+            printf("HERE1\n");
+            printf("[VERBOSE] sprinkler_tls_recv: %s\n", ERR_error_string(err, NULL));
+        }
+
+        SSL_free(ssl);
+        close(sock);
+        sprinkler_connect(servinfo);
+        ssl = sprinkler_tls_connect(ctx);
+        sprinkler_tls_send(ssl);
+        numFails++;
+        printf("HERE\n");
+        
+    }
+
+    fullResponse[bytesReceived] = '\0';
+}
 /*
 https://stackoverflow.com/questions/342409/how-do-i-base64-encode-decode-in-c
 Base64 code from user ryyst
@@ -688,3 +1012,4 @@ char *to_base64(const unsigned char *data, size_t input_length, char *encoded_da
 
     return encoded_data;
 }
+

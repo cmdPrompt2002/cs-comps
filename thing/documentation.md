@@ -137,3 +137,42 @@ TODO: replace requestBuffer with a struct that contains char* and strlength of t
 Why http-post slower than get?
 - regexec slower than strstr?
 - More calls to global variables?
+
+
+POSTER: DON'T USE URLS FOR REFERENCE. QR BETTER
+
+Questions
+- Is there any point in making it compatible with ssl? Do some websites accept TLS only?
+- Possible options: TLS, restore session, focus on multithreading, other HTTP authentication protocols (proxy, ntlm)
+
+Answers
+- TLS is worth it. Some websites require https
+
+Find where struct ssl_ctx_st is declared/defined and include that file before typs.h
+
+Checkout gprofiler to see where my program slows
+
+Look into libssl library initialization. Why is this a thing/ why do it at all?
+
+ALL VARIABLES RELATED TO SENDING/RECEIVING
+- requestBuffer, requestBufferLength, headersLength, responseBuffer, fullResponseBuffer, fullResponseLength
+
+ALL VARIABLES RELATED TO REQUEST INFO
+- host, dir, port
+
+Learned about regex negative lookahead
+
+1st PRIORITY: test whether the new recv function works, particularly the stuff about getting content legnth and line 730. 
+It works
+
+2nd PRIORITY: finish the tls_recv function and test it.
+Finished it
+
+3rd PRIORITY: test whether the recv_2 function is faster than setting the Connection: Close header and reconnect every time.
+Faster than OG sprinkler_recv and closing the connection everyting
+
+TODO: Finish the if clause in tls_recv
+
+TIL: sending a plain HTTP request to SSL-only server results in a 400 bad request! OpenSSL is absolutely necessary
+
+TODO: make it print out special characters in successCond/failCond
