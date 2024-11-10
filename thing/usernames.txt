@@ -9,3 +9,12 @@ emu
 horse
 bat
 user
+username
+password
+admin
+User
+Usercode
+login
+administrator
+doctor
+person
