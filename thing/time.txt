@@ -3,8 +3,46 @@ recv 100 combo:
 2.789
 2.231
 
-
 recv2 100 combo: 
 2.364
 2.202
 2.297
+
+ssh
+
+25
+hydra: 1m 14.71s
+sprinkler: 1m 22.01s
+
+64
+hydra: 07m 25s
+sprinkler: 3m 07.50s
+
+Sam 64
+hydra: 
+sprinkler: 200.30s
+
+Sam 100
+hydra: 
+sprinkler: 301.80s
+
+400
+
+http-post
+
+25
+hydra: 1.11s
+sprinkler: 0.914s
+
+64
+hydra: 1.67s
+sprinkler: 2.142s
+
+100
+hydra: 2.47s
+sprinkler: 4.032s
+
+400
+hydra: 7.04s
+sprinkler: 12.962s
+

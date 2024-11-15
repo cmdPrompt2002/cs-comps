@@ -176,3 +176,42 @@ TODO: Finish the if clause in tls_recv
 TIL: sending a plain HTTP request to SSL-only server results in a 400 bad request! OpenSSL is absolutely necessary
 
 TODO: make it print out special characters in successCond/failCond
+
+Oral exam: 
+
+1st 5 min
+- 2 min: elevator pitch
+- the rest: my contributions
+- can use slides to show parts of code
+- Why is this important?
+- How we set up test servers
+- Don't need to fully understand my partner's work, but should understand rough outline
+
+Recv
+Option1: Different while loops for receiveAll = 1 or 0
+Option2: If RecieveAll, then get recv once to get contentLength, and recv until all of contentlength bytes are received.
+
+Both - get contentLength variable
+ReceiveAll = 1
+- realloc array if necessary
+- call recv until bytesToRecv <=
+
+ReceiveAll = 0
+- no need to realloc array
+- Set bytesToRead variable: if bytesToRead is less than bufSize, then do nothing. Else, set bytesToRead to bufSize - 1.
+
+Dilemma: how to realloc array
+1. Access global variable fullResponse and fullResponseSize
+2. Return an array of pointers: index 0 = pointer to new array, index 1: pointer to new array size
+3. Input a pointer to a struct that has pointer to array and array size. When realloc is needed, just access the struct elements. Should be preserved when function ends.
+
+
+Function start
+
+response = realloc....
+
+return (response,responseSize)
+Function ends
+
+fullResponse = recv(....)[0]
+fullResponseSize = [1]

@@ -5,6 +5,8 @@
 #include <libssh/libssh.h>
 #include <pthread.h>
 
+extern int verbose;
+
 void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile);
 int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh);
 /* void sshOutput(int attemptStatus, ssh_session my_ssh);
@@ -144,9 +146,9 @@ int sshAttempt(char* destination, char* usr, char* pass, ssh_session my_ssh) {
 void sshOutput(int attemptStatus, ssh_session my_ssh, char *usr, char *pass) {
     if (attemptStatus == SSH_AUTH_SUCCESS) {
         printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
-    } else if(attemptStatus == SSH_AUTH_DENIED) {
+    } else if(attemptStatus == SSH_AUTH_DENIED && verbose == 1) {
         printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
-    } else {
+    } else if(verbose == 1) {
         fprintf(stderr, "Error authenticating with password: %s\n",
         ssh_get_error(my_ssh));
     }

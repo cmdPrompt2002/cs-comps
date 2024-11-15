@@ -8,7 +8,7 @@
 #include <pthread.h>
 
 
-//Example command: ./thing -U usernames.txt -P passwords.txt -s 2220 ssh bandit.labs.overthewire.org
+//Example command: ./thing -U usernames.txt -P passwords.txt -s 22 ssh 192.168.64.4
 
 //Global variables
 char *service;

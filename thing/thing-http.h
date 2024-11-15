@@ -15,7 +15,7 @@ int sprinkler_connect(struct addrinfo *servinfo);
 SSL *sprinkler_tls_connect(SSL_CTX *ctx);
 
 int http_get_init();
-int http_post_init();
+int http_post_init(int tls);
 
 int http_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int responseCheck);
 int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int responseCheck);
