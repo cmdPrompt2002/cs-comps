@@ -1,0 +1,28 @@
+===================help for service http-post====================
+
+TARGET syntax
+
+<IP/Domain name><directory>::<form parameters>::<condition regex>
+
+<IP/Domain name> (required)
+    self explanatory
+
+<directory> (optional)
+    The directory in the server to send login credentials to
+
+<form parameters> (optional)
+    
+
+<condition regex> (optional)
+    Set login success or failure to be determined by whether the condition regex is found in target's response. 
+    Uses POSIX extended regular expression.
+
+    S='success string'
+        Login success if target's response contains the regular expression 'success string'
+    
+    F='failure string'
+        Login failure if target's response contains the regular expression 'failure string'
+
+Examples
+    sprinkler -U usernames.txt -P passwords.txt -s 443 -S domainname::F='Location:[^\r\n]*loginFail/\r\n' http-post
+    
