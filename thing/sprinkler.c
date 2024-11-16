@@ -3,10 +3,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <libssh/libssh.h>
-#include "thing-http.h"
-#include "thing-ssh.h"
 #include <pthread.h>
+#include <time.h>
 
+#include "sprinkler-http.h"
+#include "sprinkler-ssh.h"
 
 //Example command: ./thing -U usernames.txt -P passwords.txt -s 22 ssh 192.168.64.4
 
@@ -20,56 +21,80 @@ FILE *usrFile;
 FILE *passFile;
 char *usrFilename = NULL;
 char *passFilename = NULL;
+clock_t lastClock ;
+clock_t nowClock;
 
 //Extra options
 int verbose = 0; //Three levels? 0,1,2
-int delay = 0;
+float delay = 0;
 int threads = 0;
 int tls = 0;
 
-//Candidate names: Decided on Sprinkler
+//For printing out help message when user typed 'sprinkler -h [service | NULL]'
+void print_help_msg(char *service);
+
 /*Command line parsing*/
 int main(int argc, char *argv[]) {
     //Flag for printing error messages
     int err = 0;
     char *errMsg = malloc(sizeof(char)*500);
     strcpy(errMsg, "Invalid usage:\n");
+    lastClock = clock();
+    nowClock = clock();
 
     /*Expected input:
-        sprinkler [-u USERNAMES | -U FILE] [-p PASSWORD | -P FILE] [-s PORT] service target
 
-        Mandatory options
-            target      a target to attack, can be an IPv4 address or DNS name
-            service     the service to attack. Type 'sprinkler -h services' to list the protocols available
-            
-            -s PORT     
-                if the service is on a different default port, define it here
-            -u USERNAME
-                supply a login username, or -U FILE to supply a username list
-            -p PASSWORD
-                supply a password, or -P FILE to supply a password list
+    NAME
+        sprinkler - a very fast password sprayer that works for ssh, http-get (basic auth), and http-post
 
-        Extra options
-            -S connect via SSL
-            -d DELAY
-                set a delay time between each login attempt
-            -b NUMBYTES
-                Set the size of the buffer holding the server's response per login attempt. 
-                Buffer should be larger than server's response.
-            -v / -V
-                Verbose Prints out all 
+    SYNOPSIS
+        sprinkler [-u USERNAMES | -U FILE] [-p PASSWORD | -P FILE] [-s PORT] SERVICE TARGET
+        sprinkler [-h SERVICE | -h]
+    
+    DESCRIPTION
+        sprinkler is a fast password sprayer that supports the following services:
+            ssh, http-get, http-post
+
+        This tool allows researchers and pen-testers to see how easy it would be to gain unauthorized access to a remote server.
+
+    MANDATORY OPTIONS
+        TARGET      The server (and directory, if applicable) to attack, can be an IPv4 address or domain name
+        SERVICE     The target's login service. Type 'sprinkler -h services' to list the protocols available
+        
+        -s PORT     
+            the target server's port
+        -u USERNAME
+            supply a login username, or -U FILE to supply a username file
+        -p PASSWORD
+            supply a password, or -P FILE to supply a password file
+
+    EXTRA OPTIONS
+        -S connect via SSL
+        -d DELAY
+            set a delay time (in seconds) between each login attempt
+        -v / -V
+            Verbose mode. -V prints out all login attempts.
             
     */
     
     //Command line parsing
     int opt;
-    printf("optind: %i, arg: %s\n", optind, argv[optind]);
+    // printf("optind: %i, arg: %s\n", optind, argv[optind]);
     while (optind < argc) {
-        if ((opt = getopt(argc, argv, ":s:u:p:U:P:v:d:t:S")) != -1) {
-            printf("optind: %i, arg: %s\n", optind, argv[optind]);
+        if ((opt = getopt(argc, argv, ":h:s:d:u:p:U:P:vVtS")) != -1) {
+            // printf("optind: %i, arg: %s\n", optind, argv[optind]);
             switch (opt) {
+                case 'h':
+                    service = optarg;
+                    print_help_msg(service);
+                    exit(0);
+                    break;
                 case 's':
                     port = atoi(optarg);
+                    if (port <= 0) {
+                        sprintf(errMsg + strlen(errMsg), "    Invalid port number: %s\n",optarg);
+                        err = 1;
+                    }
                     break;
                 case 'u':
                     strncpy(usr,optarg,256);
@@ -96,8 +121,15 @@ int main(int argc, char *argv[]) {
                 case 'v':
                     verbose = 1;
                     break;
+                case 'V':
+                    verbose = 2;
+                    break;
                 case 'd':
-                    delay = 1;
+                    delay = strtod(optarg, NULL);
+                    if (delay <= 0) {
+                        sprintf(errMsg + strlen(errMsg), "    Invalid delay number: %s\n",optarg);
+                        err = 1;
+                    }
                     break;
                 case 't':
                     threads = 1;
@@ -106,7 +138,11 @@ int main(int argc, char *argv[]) {
                     tls = 1;
                     break;
                 case ':':
-                    sprintf(errMsg,"    Option -%c requires an argument\n", optopt);
+                    if (optopt == 'h') {
+                        print_help_msg(NULL);
+                        exit(0);
+                    }
+                    sprintf(errMsg + strlen(errMsg),"    Option -%c requires an argument\n", optopt);
                     err = 1;
                     break;
                 case '?':
@@ -119,7 +155,13 @@ int main(int argc, char *argv[]) {
             }
         
         } else {
+            int args = 1;
             for (; optind < argc; optind++) {
+                if (args > 2) {
+                    sprintf(errMsg + strlen(errMsg),"    too many arguments\n");
+                    err = 1;
+                    break;
+                }
                 if (!strncmp(argv[optind], "ssh", 3)) {
                     service = "ssh";
                 } else if (!strncmp(argv[optind], "http-get", 8)) {
@@ -131,15 +173,8 @@ int main(int argc, char *argv[]) {
                 } else {
                     destination = argv[optind];         
                 }
+                args++;
             }
-            // if (!strncmp(argv[optind], "ssh", 4)) {
-            //         service = "ssh";
-            //     } else if (!strncmp(argv[optind], "http-get", 8)) {
-            //         service = "http-get";
-            //     } else {
-            //         destination = argv[optind];         
-            //     }
-            // optind++;
 
         }
     }
@@ -161,7 +196,7 @@ int main(int argc, char *argv[]) {
         sprintf(errMsg + strlen(errMsg), "    Destination port is missing\n");
         err = 1; 
     } if (err == 1) {
-        sprintf(errMsg + strlen(errMsg), "type './thing --h' for correct usage\n");
+        sprintf(errMsg + strlen(errMsg), "type './sprinkler -h' for correct usage\n");
         fprintf(stderr, "%s", errMsg);
         exit(1);
     }
@@ -288,4 +323,20 @@ int main(int argc, char *argv[]) {
     if (!strcmp(service, "ssh")) {ssh_main(usr,pass,usrFile,passFile);}
     else if (!strncmp(service, "http",4)) {http_main(usr,pass,usrFile,passFile,tls, checkStr, responseCheck);}
     return 0;
+}
+
+void print_help_msg(char *service) {
+    if (service == NULL) {
+        //Standard man page
+
+    } else if (!strncmp(service, "ssh",3)) {
+        //Tell user that there are no service specific options
+    } else if (!strncmp(service, "http-get",8)) {
+
+    } else if (!strncmp(service, "http-post",9)) {
+
+    } else {
+        printf("Service unknown or not supported: %s\n", service);
+        exit(1);
+    }
 }

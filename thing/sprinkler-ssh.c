@@ -1,11 +1,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "thing-ssh.h"
 #include <libssh/libssh.h>
 #include <pthread.h>
+#include <time.h>
+
+#include "sprinkler-ssh.h"
 
 extern int verbose;
+extern clock_t lastClock;
+extern clock_t nowClock;
+extern float delay;
 
 void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile);
 int sshAttempt(char* destination, char* username, char* password, ssh_session my_ssh);
@@ -26,6 +31,7 @@ ssh_session getSession(Attempt attempt);*/
 
 
 void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
+    int actualDelay =0;
     if (usrFilename != NULL && passFilename != NULL) {
         while (fgets(usr, 256, usrFile) != NULL) {
             if(usr[strlen(usr)-1] == '\n') {
@@ -71,7 +77,15 @@ void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
             ssh_session my_ssh = ssh_new();
             if(pass[strlen(pass)-1] == '\n') {
                 pass[strlen(pass)-1] = '\0';
-            }            
+            }
+
+            nowClock = clock();
+            if(nowClock - lastClock < delay) {
+                actualDelay = (int) (delay - nowClock + lastClock);
+                wait(&actualDelay);
+               
+            }
+
             if (sshAttempt(destination, usr, pass, my_ssh) == SSH_AUTH_SUCCESS) {
                 break;
             }  

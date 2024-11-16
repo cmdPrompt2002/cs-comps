@@ -1,6 +1,6 @@
-mal
-eve
 bob
+password
+cs338
 alice
 bob@example.com
 alice@example.com

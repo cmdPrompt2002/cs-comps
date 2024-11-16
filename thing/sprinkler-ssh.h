@@ -1,5 +1,5 @@
-#ifndef _THINGSSH
-#define _THINGSSH
+#ifndef _SPRINKLERSSH
+#define _SPRINKLERSSH
 #include <libssh/libssh.h>
 
 extern char *service;

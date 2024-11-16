@@ -215,3 +215,21 @@ Function ends
 
 fullResponse = recv(....)[0]
 fullResponseSize = [1]
+
+## 11/16/24
+
+Recv - accounted for chunked encoding - call recv (and realloc if necessary) until endBody marker (\r\n0\r\n) is found
+Cases to test, each case also test for sufficiently large and small buf array
+- ReceiveAll = 1 and chunked
+- ReceiveAll = 1 and not chunked
+- ReceiveAll = 0 and chunked
+- ReceiveAll = 0 and not chunked
+
+TODO: 
+
+
+Sam added delay time
+Changed thing to sprinkler for all files
+Changed Makefile accordingly
+Added man page
+

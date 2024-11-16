@@ -1,0 +1,35 @@
+NAME
+    sprinkler - a very fast password sprayer that works for ssh, http-get (basic auth), and http-post
+
+SYNOPSIS
+    sprinkler [-u USERNAMES | -U FILE] [-p PASSWORD | -P FILE] [-s PORT] SERVICE TARGET
+
+DESCRIPTION
+    sprinkler is a fast password sprayer that supports the following services:
+        ssh, http-get, http-post
+
+    This tool allows researchers and pen-testers to see how easy it would be to gain unauthorized access to a remote server.
+
+MANDATORY OPTIONS
+    TARGET      The server (and directory, if applicable) to attack, can be an IPv4 address or domain name
+    SERVICE     The target's login service. Type 'sprinkler -h services' to list the protocols available
+    
+    -s PORT     
+        the target server's port
+    -u USERNAME
+        supply a login username, or -U FILE to supply a username file
+    -p PASSWORD
+        supply a password, or -P FILE to supply a password file
+
+EXTRA OPTIONS
+    -S connect via SSL
+    -d DELAY
+        set a delay time (in seconds) between each login attempt
+    -v / -V
+        Verbose mode. -V prints out all login attempts.
+    -h / -h SERVICE
+        prints out man page, or SERVICE specific usages
+
+
+EXAMPLES
+    sprinkler -u user1 -P pass5.txt -s 80 domainname/basicauth/ http-get
