@@ -5,14 +5,14 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-#include <fcntl.h>
+//#include <fcntl.h>
 #include <netdb.h>
 #include <math.h>
 #include <errno.h>
 #include <regex.h>
 #include <time.h>
 
-#include <poll.h> //For async I/O (WIP)
+//#include <poll.h> //For async I/O (WIP)
 
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
@@ -315,10 +315,11 @@ int http_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int response
 int http_get_init() {
     passBuffer = malloc(sizeof(char)*512); //stores "username:password" in unencoded plaintext
     requestBuffer = malloc(sizeof(char)*700);
-    fullResponseSize = 1000;
+    fullResponseSize = 450;
     fullResponse = malloc(sizeof(char)*fullResponseSize);
     return 0;
 }
+
 //Assumes basic auth
 int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int responseCheck) {
     
@@ -345,7 +346,8 @@ int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int respo
     } else {
         sprinkler_send();
         sprinkler_recv(fullResponse, fullResponseSize, 0);
-        // printf("%s\n",fullResponse);
+        //printf("fullResponseSize: %d\n",fullResponseSize);
+        //printf("%s\n=======================\n",fullResponse);
     }
     
     int ret;
@@ -414,7 +416,7 @@ int http_post_init(int tls) {
         sprinkler_tls_recv(authDetails, authDetailsSize, 0);
     } else {
         sprinkler_send();
-        sprinkler_recv(authDetails, authDetailsSize, 0);
+        sprinkler_recv(authDetails, authDetailsSize, 1);
     }
     
     //authDetails = sprinkler_recv(0,authDetails,authDetailsSize);
@@ -559,7 +561,7 @@ int http_post_init(int tls) {
     free(authDetails);
     reqContentLength = strlen(body) + strlen(usrPrefix) + strlen(passPrefix) + 1;
     headersLength = strlen(requestBuffer);
-    fullResponseSize = 500 - 40;
+    fullResponseSize = 1500;
     fullResponse = malloc(sizeof(char)*fullResponseSize);
   
     return 0;
@@ -577,7 +579,8 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
         sprinkler_tls_recv(fullResponse, fullResponseSize, 0);
     } else {
         sprinkler_send();
-        sprinkler_recv(fullResponse,fullResponseSize, 0);
+        sprinkler_recv(fullResponse,fullResponseSize, 1);
+        //printf("%s\n=======================\n",fullResponse);
         
     }
 
@@ -690,16 +693,20 @@ void sprinkler_tls_send(SSL *ssl) {
     
 }
 
-/* void sprinkler_recv: get the server's response by calling C's recv function
+/* void sprinkler_recv: 
+DESCRIPTION
+    Read the server's response into buf by calling C's recv function.
+    Compatible with both chunked and non-chunked encoding.
+    Can specify whether all of server's response should be read into buf.
 INPUTS
     * char *buf: pointer to the buffer that stores bytes from the server
-    * int bufSize: total number of bytes allocated for *fullResponse*
+    * int bufSize: total number of bytes allocated for buf
     * int receiveAll:
             1: Read everything from the server's response into buf.
-               If the server's response > bufSize, then realloc buf
+               If the server's response > bufSize, then buf is realloced automatically
             0: Only read up to bufSize bytes at most, and discard the rest into a trash array
 OUTPUT
-    None, but saves the server's response into buf
+    None
 */
 void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
     
@@ -709,7 +716,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
     /* Cumulative no. of bytes received */
     int totalBytesReceived = 0;
 
-    /* Bytes to read into fullResponse (larger buffer for everything received)*/
+    /* Bytes to read into buf. Calculation of this value depends on receiveAll and whether the target's response is chunked*/
     int bytesToRead = bufSize - 1; 
 
     /* Bytes to discard into the trash array (large buffer for stuff we don't care about)*/
@@ -718,7 +725,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
     /* How many time has recv returns an error value */
     int numFails = 0;
 
-    /* If receiveAll == 1, this will store the value of the Content-Length header */
+    /* If server uses non-chunked encoding, this will store the value of the Content-Length header */
     int contentLength = -1;
 
     /* Stores the pointer to the end of headers section (marked by \r\n\r\n) */
@@ -737,6 +744,8 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
             close(sock);
             if (numFails > 3) {
                 fprintf(stderr,"Reattempts failed.\n");
+                printf("Server's last response: %s\n", buf);
+                printf("Current request: %s\n", requestBuffer);
                 exit(1);
             }
 
@@ -759,7 +768,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
    
     if (endHeader == NULL) {
         fprintf(stderr, "Headers length larger than bufSize. Prompt needs better code.\n");
-        printf("%s\n",buf);
+        //printf("%s\n",buf);
         exit(1);
     }
 
@@ -785,26 +794,6 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
         
         numContentBytesRead = totalBytesReceived - numHeaderBytes; //Correct
         bytesToRead = contentLength - numContentBytesRead; //Correct if all of response is already in buf. Also correct if only some of response is in buf
-    } else if (regexResult == REG_NOMATCH) { 
-        //Chunked encoding might be used. Check if that's true
-        char *ptr = strstr(buf,"Transfer-Encoding: chunked\r\n");
-        if (ptr != NULL && ptr - buf < numHeaderBytes) {
-            
-            bytesToRead = bufSize - totalBytesReceived - 1;
-            chunked = 1;
-            endBody = strstr(buf,"\r\n0\r\n");
-        } else {
-            fprintf(stderr,"Server's response is unsupported. Missing Content-Length or chunked transfer encoding\n");
-            exit(1);
-        }
-        
-    } else {
-        fprintf(stderr,"Regexec of contentLengthString failed\n");
-        exit(1);
-    }
-    
-    //Final setup based on bytesToRead
-    if (chunked == 0) {
 
         //Realloc buf if bytesToRead is larger than its size. If clause correct. Realloc correct.
         if (receiveAll == 1 && bytesToRead >= bufSize - totalBytesReceived) {
@@ -822,13 +811,43 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
             bytesToRead = bufSize - totalBytesReceived - 1;
             bytesToTrash = contentLength - numContentBytesRead - bytesToRead;
         }
+
+    } else if (regexResult == REG_NOMATCH) { 
+        //Chunked encoding might be used. Check if that's true
+        char *ptr = strstr(buf,"Transfer-Encoding: chunked\r\n");
+        if (ptr != NULL && ptr - buf < numHeaderBytes) {
+            
+            bytesToRead = bufSize - totalBytesReceived - 1;
+            chunked = 1;
+            endBody = strstr(buf,"\r\n0\r\n");
+        } else {
+            fprintf(stderr,"Server's response is unsupported. Missing Content-Length or chunked transfer encoding\n");
+            exit(1);
+        }
+
+        //If buf is full but we haven't found the marker for end of body, realloc if necessary
+        if (bytesToRead <= 0 && endBody == NULL && receiveAll) {
+            if (verbose == 1) {
+                printf("[VERBOSE] sprinkler_recv: target's response larger than allocated buffer. Reallocing...\n");
+            }
+            bufSize *=2;
+            fullResponse = (char *) realloc(fullResponse, (size_t) bufSize);
+            buf = fullResponse;
+            fullResponseSize = bufSize;
+            bytesToRead = bufSize - totalBytesReceived -1;
+        }
+        
+    } else {
+        fprintf(stderr,"Regexec of contentLengthString failed\n");
+        exit(1);
     }
+    
     
     //Receive the rest of the response
     numFails = 0;
+    //printf("BytesToRead: %d\nEndBody: %s\n",bytesToRead,endBody);
     while (bytesToRead > 0 && endBody == NULL) {
-        
-
+        //printf("Receiving the rest of response\n");
         while ((bytesReceived = recv(sock, buf + totalBytesReceived, bytesToRead, 0)) <= 0) {
             
             close(sock);
@@ -851,6 +870,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
         bytesToRead -= bytesReceived;
 
         if (chunked) {
+            printf("Here!\n");
             endBody = strstr(buf,"\r\n0\r\n"); //Should switch to indexing to improve speed!!!
 
             //If buf is full but we haven't found the marker for end of body, realloc if necessary
@@ -862,21 +882,22 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
                 fullResponse = (char *) realloc(fullResponse, (size_t) bufSize);
                 buf = fullResponse;
                 fullResponseSize = bufSize;
+                bytesToRead = bufSize - totalBytesReceived -1;
             }
         }
         
     }
     
-    //Read bytes we don't care into the trash array
-    if (bytesToTrash != 0 || (chunked && endBody == NULL) ) {
-        
-        //We need to account for the case where some part of the end marker is captured in the buf array.
+    //Read bytes we don't care into the trash array. CORRECT!
+    if (bytesToTrash != 0 || (chunked == 1 && endBody == NULL) ) {
+        //printf("Enters trash\nendBody: %s\nBytesToTrash: %d\n",endBody,bytesToTrash);
+        //We need to account for the case where some part of the end marker is splitted into the buf array.
         numFails = 0;
         char trash[MAX_RESPONSE_SIZE];
-        strncpy(trash,buf+bufSize-6,5);
+        strncpy(trash,buf+bufSize-6,5); //Copies the last 5 bytes in buf into the trash array, in case those constitute the end marker
 
-        while (bytesToTrash > 0 && endBody == NULL) {
-            while ((bytesReceived = recv(sock, trash+4, MAX_RESPONSE_SIZE-4, 0)) <= 0) {
+        while ((chunked == 0 && bytesToTrash > 0) || (chunked == 1 && endBody == NULL)) {
+            while ((bytesReceived = recv(sock, trash+5, MAX_RESPONSE_SIZE-5, 0)) <= 0) {
                 
                 close(sock);
                 if (numFails > 3) {
@@ -893,13 +914,16 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
                 sprinkler_send();
                 numFails++;
             }
-            //totalBytesReceived += bytesReceived;
+            //totalBytesReceived += bytesReceived; //No need
             
             if (chunked) {
                 endBody = strstr(trash, "\r\n0\r\n");
+                strncpy(trash,trash+MAX_RESPONSE_SIZE-5,5); //-5 bc no null byte at the end
             } else {
                 bytesToTrash -= bytesReceived;
             }
+            // trash[MAX_RESPONSE_SIZE-1] = '\0';
+            // printf("TRASH: %s\n\n",trash);
         }
     }
 }
@@ -913,7 +937,7 @@ void sprinkler_tls_recv(char *fullResponse, int fullResponseSize, int receiveAll
 
     if (receiveAll) {
 
-
+        //ugh
     }
 
     while ((retValue = SSL_read_ex(ssl, fullResponse, fullResponseSize - 1, &bytesReceived)) <= 0) {
@@ -923,27 +947,25 @@ void sprinkler_tls_recv(char *fullResponse, int fullResponseSize, int receiveAll
             exit(1);
         }
 
-        //ADD if (verbose)
-        err = SSL_get_error(ssl,retValue);
-        if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
-            printf("[VERBOSE] sprinkler_tls_recv: server closed connection. Reconnecting...\n");  
-        } else {
-            
-            printf("[VERBOSE] sprinkler_tls_recv: %s\n", ERR_error_string(err, NULL));
+        if (verbose == 1) {
+            err = SSL_get_error(ssl,retValue);
+            if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
+                printf("[VERBOSE] sprinkler_tls_recv: server closed connection. Reconnecting...\n");  
+            } else {
+                printf("[VERBOSE] sprinkler_tls_recv: %s\n", ERR_error_string(err, NULL));
+            }
         }
 
-        SSL_free(ssl);
-        close(sock);
+        SSL_free(ssl); close(sock);
         sprinkler_connect(servinfo);
         ssl = sprinkler_tls_connect(ctx);
         sprinkler_tls_send(ssl);
         numFails++;
-       
-        
     }
 
     fullResponse[bytesReceived] = '\0';
 }
+
 /*
 https://stackoverflow.com/questions/342409/how-do-i-base64-encode-decode-in-c
 Base64 code from user ryyst

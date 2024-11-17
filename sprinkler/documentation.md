@@ -221,9 +221,17 @@ fullResponseSize = [1]
 Recv - accounted for chunked encoding - call recv (and realloc if necessary) until endBody marker (\r\n0\r\n) is found
 Cases to test, each case also test for sufficiently large and small buf array
 - ReceiveAll = 1 and chunked
+    - Small array: worked!!
+    - Large array: worked!!
 - ReceiveAll = 1 and not chunked
+    - Small array: worked!!
+    - Large array: worked!!
 - ReceiveAll = 0 and chunked
+    - Small array: worked!!
+    - large array: worked!!
 - ReceiveAll = 0 and not chunked
+    - Small array: worked!!
+    - Large array: worked!!
 
 TODO: 
 
