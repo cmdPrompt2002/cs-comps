@@ -621,10 +621,10 @@ int http_post_init(int tls, char *inputParam) {
     }
 
     if (passPrefix == NULL) {
-        fpritnf(stderr, "can't find parameter name that corresponds to password. Use -i option to specify parameter names.\n");
+        fprintf(stderr, "can't find parameter name that corresponds to password. Use -i option to specify parameter names.\n");
         exit(1);
     } else if (usrPrefix == NULL) {
-        fpritnf(stderr, "can't find parameter name that corresponds to usernmae. Use -i option to specify parameter names\n");
+        fprintf(stderr, "can't find parameter name that corresponds to usernmae. Use -i option to specify parameter names\n");
         exit(1);
     }
     
