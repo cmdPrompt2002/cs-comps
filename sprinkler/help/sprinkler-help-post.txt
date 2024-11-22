@@ -1,0 +1,36 @@
+===================Sprinkler help: http-post====================
+
+Syntax for TARGET
+
+<IP/Domain name><directory>::<form parameters>::<condition regex>
+
+<IP/Domain name> (required)
+    self explanatory
+
+<directory> (optional)
+    The directory in the server to send login credentials to
+
+<form parameters> (optional)
+    The login variable names and values, with each pair separated by &
+    If the variable name corresponds to the username, then set value to ^USER^
+    If the variable name corresponds the password, then set value to ^PASS^ 
+    Examples:
+        session=abcde&email=^USER^&passwd=^PASS^
+        email=^USER^
+        passwd=^PASS^
+
+<condition regex> (optional)
+    Set login success or failure to be determined by whether the condition regex is found in target's response. 
+    Uses POSIX extended regular expression.
+    NOTE: this option must come last
+
+    S='success string'
+        Login success if target's response contains the regular expression 'success string'
+    
+    F='failure string'
+        Login failure if target's response contains the regular expression 'failure string'
+
+Examples
+    sprinkler -u user1 -p pass1 -s 80 domainname::email=^USER^&password=^PASS::F='Location:[^\r\n]*loginFail/\r\n' http-post
+    sprinkler -u user1 -p pass1 -s 80 domainname::session=abcde&user=^USER^&pass=^PASS^ http-post
+    

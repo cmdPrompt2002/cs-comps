@@ -32,12 +32,12 @@
 // ./sprinkler -U usernames.txt -P passwords.txt -s 443 -S authenticationtest.com/HTTPAuth/::F=$'Location:[^\r\n]*loginFail/\r\n' http-get
 // ./sprinkler -U usernames.txt -P passwords.txt -s 443 -S authenticationtest.com/complexAuth/::F=$'Location:[^\r\n]*loginFail/\r\n' http-post
 
-int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, regex_t *checkStr, int responseCheck);
+int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, regex_t *checkStr, int responseCheck, char *inputParam);
 int sprinkler_connect(struct addrinfo *servinfo);
 SSL *sprinkler_tls_connect(SSL_CTX *ctx);
 
 int http_get_init();
-int http_post_init(int tls);
+int http_post_init(int tls, char *inputParam);
 
 int http_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int responseCheck);
 int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int responseCheck);
@@ -61,20 +61,18 @@ char *dir; //Directory of the server to request from
 char *type; //Type of HTTP request: GET pr POST
 char *charPort; //c getaddrinfo() only accepts char* for port
 extern int verbose;
-extern clock_t lastClock;
-extern clock_t nowClock;
 extern float delay;
 
 //Server response type
 #define HTTP_AUTH_SUCCESS 0
 #define HTTP_AUTH_FAILURE 1
-#define HTTP_CONNECTION_CLOSED 2
+// #define HTTP_CONNECTION_CLOSED 2
 #define MAX_RESPONSE_SIZE 1000
 
 //HTTP request and response vars
 char *passBuffer; //for http-get basicauth only
 char *requestBuffer;
-char responseBuffer[MAX_RESPONSE_SIZE];
+//char responseBuffer[MAX_RESPONSE_SIZE];
 char *fullResponse;
 int fullResponseSize;
 
@@ -103,7 +101,7 @@ static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
 static char *decoding_table = NULL;
 static int mod_table[] = {0, 2, 1};
 
-int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, regex_t *checkStr, int responseCheck) {
+int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, regex_t *checkStr, int responseCheck, char* inputParam) {
     host = malloc(sizeof(char)*(strlen(destination)+1));
     charPort = malloc((size_t)((ceil(log10(port))+1)*sizeof(char)));
     sprintf(charPort, "%d",port);
@@ -128,6 +126,9 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, reg
         strncpy(host,destination,dirIdx+1);
         host[dirIdx] = '\0';
     }
+
+    //Get success/failure condition string. (Ideally, should be in sprinkler-http file or need to be able to process form variables too)
+    
 
     //Get server information into servinfo
     memset(&hints, 0, sizeof hints);
@@ -161,18 +162,19 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, reg
         SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
         ssl = sprinkler_tls_connect(ctx); 
     }
+
+
     
 
     //Initialize required vars for each service
     if (!strcmp(type,"GET")) {
         http_get_init();
     } else if (!strcmp(type,"POST")) {
-        http_post_init(tls);
+        http_post_init(tls, inputParam);
     }
 
     //Here comes the spraying
     int attemptStatus;
-    int actualDelay = 0;
     if (usrFilename != NULL && passFilename != NULL) {
         while (fgets(usr, 256, usrFile) != NULL) {
             if(usr[strlen(usr)-1] == '\n') { //Dont change this to ... != '\0', or the last entry will be shorteded by 1 char.
@@ -184,11 +186,7 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, reg
                 if(pass[strlen(pass)-1] == '\n') 
                     pass[strlen(pass)-1] = '\0';
                 
-                nowClock = clock();
-                if(nowClock - lastClock < delay) {
-                    actualDelay = (int) (delay - nowClock + lastClock);
-                    wait(&actualDelay);
-                }
+                sleep(delay);
                 attemptStatus = http_attempt(usr,pass,tls, checkStr, responseCheck);
                 
                 
@@ -391,174 +389,236 @@ int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int respo
     
 }
 
-int http_post_init(int tls) {
+int http_post_init(int tls, char *inputParam) {
     //Initialize the global vars
     requestBuffer = malloc(sizeof(char)*1000);
-    sprintf(requestBuffer,
+    body = malloc(sizeof(char)*500);
+    body[0] = '\0';
+
+    //email=^USER^&passwd=^PASS^&status=lol&...
+    if (inputParam != NULL) { //Only works if the server uses application/x-www-form-urlencoded
+        
+        char *cur = inputParam;
+        
+        char *sep = NULL;
+        char *and = NULL;
+        int len = 0;
+        
+        while (cur != NULL) {
+            sep = strstr(cur, "=");
+            if (sep == NULL || sep - cur <= 1) {
+                fprintf(stderr,"invalid usage for option -i: %s\n", inputParam);
+                exit(1);
+            }
+            and = strstr(sep, "&");
+            if (and != NULL && and - sep <= 0) {
+                fprintf(stderr, "invalid usage for option -i: %s\n", inputParam);
+                exit(1);
+            }
+            
+            if (!strncmp(sep+1,"^USER^",6)) {
+                if (usrPrefix != NULL) {
+                    fprintf(stderr, "Invalid usage for option -i: %s\n", inputParam);
+                    exit(1);
+                }
+                usrPrefix = malloc(sizeof(char)*(sep-cur+2)); 
+                //strncpy(usrPrefix, cur, sep - cur);
+                sprintf(usrPrefix, "%.*s=", (int)(sep-cur) , cur);
+                // printf("usrPrefix: %s\n", usrPrefix);
+            } else if (!strncmp(sep+1, "^PASS^",6)) {
+                if (passPrefix != NULL) {
+                    fprintf(stderr, "Invalid usage for option -i: %s\n", inputParam);
+                    exit(1);
+                }
+                passPrefix = malloc(sizeof(char)*(sep-cur+2));
+                //strncpy(passPrefix, cur, len);
+                sprintf(passPrefix, "%.*s=", (int)(sep-cur) , cur);
+                // printf("passPrefix: %s\n", passPrefix);
+            } else {
+                len = (and == NULL) ? strlen(cur) : and - cur;
+                sprintf(body + strlen(body), "%.*s&", len, cur);
+                printf("Body so far: %s\n", body);
+            }
+
+            cur = (and == NULL) ? NULL : and + 1;
+
+        }
+
+        sprintf(requestBuffer,
+                "POST %.250s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 "
+                    "(Thing)\r\nConnection: "
+                    "keep-alive\r\nAccept: text/html\r\n"
+                    "Content-Type: application/x-www-form-urlencoded\r\n"
+                    "Origin: http://%s\r\n"
+                    "Referer: http://%s\r\n",
+                dir, host,host,destination);
+        
+
+    } else {
+       
+        sprintf(requestBuffer,
               "GET %.250s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 "
                 "(Thing)\r\nConnection: "
                 "close\r\nAccept: text/html\r\n\r\n",
                dir, host);
+        /*GET SERVER'S HTML*/ //The html contains the variable names required for authentication
 
-    body = malloc(sizeof(char)*300);
-    
-    /*GET SERVER'S HTML*/ //The html contains the variable names required for authentication
+        //Allocate buffer for html
+        int authDetailsSize = 5000;
+        char *authDetails = malloc(sizeof(char)*authDetailsSize);
 
-    //Allocate buffer for html
-    int authDetailsSize = 5000;
-    char *authDetails = malloc(sizeof(char)*authDetailsSize);
+        //Send the HTTP request
+        
 
-    //Send the HTTP request
-    
+        if (tls) {
+            sprinkler_tls_send(ssl);
+            sprinkler_tls_recv(authDetails, authDetailsSize, 0);
+        } else {
+            sprinkler_send();
+            sprinkler_recv(authDetails, authDetailsSize, 1);
+        }
+        
+        //authDetails = sprinkler_recv(0,authDetails,authDetailsSize);
+        
 
-    if (tls) {
-        sprinkler_tls_send(ssl);
-        sprinkler_tls_recv(authDetails, authDetailsSize, 0);
-    } else {
-        sprinkler_send();
-        sprinkler_recv(authDetails, authDetailsSize, 1);
-    }
-    
-    //authDetails = sprinkler_recv(0,authDetails,authDetailsSize);
-    
-
-    /*PARSE SERVER'S HTML*/
-    regex_t regex;
-    regmatch_t match;
-    char *formTag = "<form[^>]*method=\"post\"[^>]*>";
-    char *inputTag = "<input[^>]*(name=\"[^\"]*\")[^>]*>"; //|<input[^>]*(value=\"[^\"]*\")[^>]*(name=\"[^\"]*\")[^>]*>  <input[^>]*(name=\"[^\"]*\")[^>]*(value=\"[^\"]*\")[^>]*>|
-    char *formEndTag = "</form>";
-    
-    if (regcomp(&regex, formTag, REG_EXTENDED | REG_ICASE) != 0) {
-        fprintf(stderr, "Could not compile formTag regex\n");
-        exit(1);
-    }
-
-    
-
-    //Search for the <form...method="post"...> tag 
-    int formTag_start; //Start idx of <form...>
-    int formTag_end; //End idx of <form ...>
-    int formEndTag_start; //Start idx of </form>
-    if (regexec(&regex, authDetails, 1, &match, 0) != 0) {
-        fprintf(stderr,"Can't find formTag. Change service.\n");
-        exit(1);
-    } 
-  
-    formTag_start = match.rm_so;
-    formTag_end = match.rm_eo;
-
-    //Search for the </form> tag that corresponds to the tag above
-    if (regcomp(&regex, formEndTag, REG_EXTENDED) != 0) {
-        fprintf(stderr, "Could not compile formEndTag regex\n");
-        exit(1);
-    }
-    
-    if (regexec(&regex, authDetails + formTag_end, 1, &match, 0) != 0) {
-        fprintf(stderr,"Can't find formEndTag. Change service.\n");
-        exit(1);
-    }
-    formEndTag_start = formTag_end + match.rm_so;
-   
-    //Now we need to prepare the POST request buffer that sends auth variables
-    sprintf(requestBuffer,
-              "POST %.250s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 "
-                "(Thing)\r\nConnection: "
-                "keep-alive\r\nAccept: text/html\r\n"
-                "Content-Type: application/x-www-form-urlencoded\r\n"
-                "Origin: http://%s\r\n"
-                "Referer: http://%s\r\n",
-               dir, host,host,destination);
- 
-    //Find the input tag in response html (authDetails)
-    int start = formTag_end;
-    int inputEnd;
-    regmatch_t *matches = malloc(sizeof(regmatch_t)*3);
-    int valueLength;
-    char *name;
-    char *value;
-    int nameFound, valueFound, usrMatchResult, passMatchResult;
- 
-    //Find and get each auth variable name and/or values
-    while (1) {
-       
-        //Prepare the inputTag regex
-        if (regcomp(&regex, inputTag, REG_EXTENDED) != 0) {
-        fprintf(stderr, "Could not compile inputTag regex\n");
-        exit(1);
-        } 
-        //Search for the inputTag sequence
-        if (regexec(&regex, authDetails + start, 3, matches, 0) != 0) {
-            break;
-        } else if (matches[0].rm_so + start >= formEndTag_start) { 
-            //This input tag is after the </form> tag, so it's irrelevant.
-            break;
-        } 
-        nameFound = 0; 
-        valueFound = 0;
-        inputEnd = matches[0].rm_eo;
-
-        for (int i = 1; i < 3; i++) {
-            if (!strncmp(authDetails + start + matches[i].rm_so,"name",4)) {
-                nameFound = 1;
-                valueLength = (matches[i].rm_eo - matches[i].rm_so) - 7;
-                name = malloc(sizeof(char)*(valueLength+1));
-                strncpy(name,authDetails + start + matches[i].rm_so + 6,valueLength);
-                name[valueLength] = '\0';
-                //printf("Val length: %i\n%s\n",valueLength, name);
-                
-
-            } else if (!strncmp(authDetails + start + matches[i].rm_so,"value",5)) {
-                valueFound = 1;
-                valueLength = (matches[i].rm_eo - matches[i].rm_so) - 8;
-                value = malloc(sizeof(char)*(valueLength+1));
-                strncpy(value,authDetails + start + matches[i].rm_so + 7,valueLength);
-                value[valueLength] = '\0';
-                //printf("Val length: %i\n%s\n",valueLength, value);
-            }
+        /*PARSE SERVER'S HTML*/
+        regex_t regex;
+        regmatch_t match;
+        char *formTag = "<form[^>]*method=\"post\"[^>]*>";
+        char *inputTag = "<input[^>]*(name=\"[^\"]*\")[^>]*>"; //|<input[^>]*(value=\"[^\"]*\")[^>]*(name=\"[^\"]*\")[^>]*>  <input[^>]*(name=\"[^\"]*\")[^>]*(value=\"[^\"]*\")[^>]*>|
+        char *formEndTag = "</form>";
+        
+        if (regcomp(&regex, formTag, REG_EXTENDED | REG_ICASE) != 0) {
+            fprintf(stderr, "Could not compile formTag regex\n");
+            exit(1);
         }
 
         
-        if (nameFound && valueFound) { //If name and value found, then add both to request buffer
-            sprintf(body + strlen(body), "%s=%s",name,value);
-            //Add the & at the end of each auth var to distinguish between different vars
-            sprintf(body + strlen(body), "&");
 
-        } else if (nameFound) { //If only name is found, then check if it could be usr or pass
-            //Prepare usr string regex
-            char *usrString = "usr|user|email|name";
-            if (regcomp(&regex, usrString, REG_EXTENDED | REG_ICASE) != 0) {
-                fprintf(stderr, "Could not compile usrString regex\n");
-                exit(1);
-            }
-            usrMatchResult = regexec(&regex, name, 1, &match, 0);
-            
-            char *passString = "pass|pw";
-            if (regcomp(&regex, passString, REG_EXTENDED | REG_ICASE) != 0) {
-                fprintf(stderr, "Could not compile passString regex\n");
-                exit(1);
-            }
-            passMatchResult = regexec(&regex, name, 1, &match, 0);
+        //Search for the <form...method="post"...> tag 
+        int formTag_start; //Start idx of <form...>
+        int formTag_end; //End idx of <form ...>
+        int formEndTag_start; //Start idx of </form>
+        if (regexec(&regex, authDetails, 1, &match, 0) != 0) {
+            fprintf(stderr,"Can't find formTag. Change service.\n");
+            exit(1);
+        } 
+    
+        formTag_start = match.rm_so;
+        formTag_end = match.rm_eo;
 
-            if (usrMatchResult == 0) {
-                usrPrefix = malloc(sizeof(char)*(strlen(name)+1));
-                sprintf(usrPrefix,"%s=",name);
-            } else if (passMatchResult == 0) {
-                passPrefix = malloc(sizeof(char)*(strlen(name)+1));
-                sprintf(passPrefix,"%s=",name);
-            } else if (usrMatchResult == REG_NOMATCH && passMatchResult == REG_NOMATCH) {
-                //sprintf(body + strlen(body), "%s=&",name);
-            } else {
-                fprintf(stderr, "regexec ran out of memory\n");
-            }
-
-            
+        //Search for the </form> tag that corresponds to the tag above
+        if (regcomp(&regex, formEndTag, REG_EXTENDED) != 0) {
+            fprintf(stderr, "Could not compile formEndTag regex\n");
+            exit(1);
         }
-        start += inputEnd;
- 
+        
+        if (regexec(&regex, authDetails + formTag_end, 1, &match, 0) != 0) {
+            fprintf(stderr,"Can't find formEndTag. Change service.\n");
+            exit(1);
+        }
+        formEndTag_start = formTag_end + match.rm_so;
+    
+        //Now we need to prepare the POST request buffer that sends auth variables
+        sprintf(requestBuffer,
+                "POST %.250s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 "
+                    "(Thing)\r\nConnection: "
+                    "keep-alive\r\nAccept: text/html\r\n"
+                    "Content-Type: application/x-www-form-urlencoded\r\n"
+                    "Origin: http://%s\r\n"
+                    "Referer: http://%s\r\n",
+                dir, host,host,destination);
+    
+        //Find the input tag in response html (authDetails)
+        int start = formTag_end;
+        int inputEnd;
+        regmatch_t *matches = malloc(sizeof(regmatch_t)*3);
+        int valueLength;
+        char *name;
+        char *value;
+        int nameFound, valueFound, usrMatchResult, passMatchResult;
+    
+        //Find and get each auth variable name and/or values
+        while (1) {
+        
+            //Prepare the inputTag regex
+            if (regcomp(&regex, inputTag, REG_EXTENDED) != 0) {
+            fprintf(stderr, "Could not compile inputTag regex\n");
+            exit(1);
+            } 
+            //Search for the inputTag sequence
+            if (regexec(&regex, authDetails + start, 3, matches, 0) != 0) {
+                break;
+            } else if (matches[0].rm_so + start >= formEndTag_start) { 
+                //This input tag is after the </form> tag, so it's irrelevant.
+                break;
+            } 
+            nameFound = 0; 
+            valueFound = 0;
+            inputEnd = matches[0].rm_eo;
+
+            for (int i = 1; i < 3; i++) {
+                if (!strncmp(authDetails + start + matches[i].rm_so,"name",4)) {
+                    nameFound = 1;
+                    valueLength = (matches[i].rm_eo - matches[i].rm_so) - 7;
+                    name = malloc(sizeof(char)*(valueLength+1));
+                    strncpy(name,authDetails + start + matches[i].rm_so + 6,valueLength);
+                    name[valueLength] = '\0';
+                    //printf("Val length: %i\n%s\n",valueLength, name);
+                    
+
+                } else if (!strncmp(authDetails + start + matches[i].rm_so,"value",5)) {
+                    valueFound = 1;
+                    valueLength = (matches[i].rm_eo - matches[i].rm_so) - 8;
+                    value = malloc(sizeof(char)*(valueLength+1));
+                    strncpy(value,authDetails + start + matches[i].rm_so + 7,valueLength);
+                    value[valueLength] = '\0';
+                    //printf("Val length: %i\n%s\n",valueLength, value);
+                }
+            }
+
+            
+            if (nameFound && valueFound) { //If name and value found, then add both to request buffer
+                sprintf(body + strlen(body), "%s=%s&",name,value);
+                //Added the & at the end of each auth var to distinguish between different vars
+                
+
+            } else if (nameFound) { //If only name is found, then check if it could be usr or pass
+                //Prepare usr string regex
+                char *usrString = "usr|user|email|name";
+                if (regcomp(&regex, usrString, REG_EXTENDED | REG_ICASE) != 0) {
+                    fprintf(stderr, "Could not compile usrString regex\n");
+                    exit(1);
+                }
+                usrMatchResult = regexec(&regex, name, 1, &match, 0);
+                
+                char *passString = "pass|pw";
+                if (regcomp(&regex, passString, REG_EXTENDED | REG_ICASE) != 0) {
+                    fprintf(stderr, "Could not compile passString regex\n");
+                    exit(1);
+                }
+                passMatchResult = regexec(&regex, name, 1, &match, 0);
+
+                if (usrMatchResult == 0) {
+                    usrPrefix = malloc(sizeof(char)*(strlen(name)+1));
+                    sprintf(usrPrefix,"%s=",name);
+                } else if (passMatchResult == 0) {
+                    passPrefix = malloc(sizeof(char)*(strlen(name)+1));
+                    sprintf(passPrefix,"%s=",name);
+                } else if (usrMatchResult == REG_NOMATCH && passMatchResult == REG_NOMATCH) {
+                    //sprintf(body + strlen(body), "%s=&",name);
+                } else {
+                    fprintf(stderr, "regexec ran out of memory\n");
+                }
+
+                
+            }
+            start += inputEnd;
+    
+        }
+        free(authDetails);
     }
 
-    free(authDetails);
     reqContentLength = strlen(body) + strlen(usrPrefix) + strlen(passPrefix) + 1;
     headersLength = strlen(requestBuffer);
     fullResponseSize = 1500;
@@ -719,7 +779,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
     /* Bytes to read into buf. Calculation of this value depends on receiveAll and whether the target's response is chunked*/
     int bytesToRead = bufSize - 1; 
 
-    /* Bytes to discard into the trash array (large buffer for stuff we don't care about)*/
+    /* How many bytes from server's response to discard into the trash array (large buffer for stuff we don't care about)*/
     int bytesToTrash = 0;
 
     /* How many time has recv returns an error value */
@@ -743,9 +803,10 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
         while ((bytesReceived = recv(sock, buf + totalBytesReceived, bytesToRead, 0)) <= 0) {
             close(sock);
             if (numFails > 3) {
-                fprintf(stderr,"Reattempts failed.\n");
-                printf("Server's last response: %s\n", buf);
-                printf("Current request: %s\n", requestBuffer);
+                fprintf(stderr,"Reattempts failed: %s\n",strerror(errno));
+                // printf("Server's last response: %s\n", buf);
+                // printf("Current request: %s\n", requestBuffer);
+                // printf("%s\n",strerror(errno));
                 exit(1);
             }
 

@@ -1,5 +1,5 @@
 NAME
-    sprinkler - a very fast password sprayer that works for ssh, http-get (basic auth), and http-post
+    sprinkler - a fast password sprayer that works for ssh, http-get (basic auth), and http-post
 
 SYNOPSIS
     sprinkler [-u USERNAMES | -U FILE] [-p PASSWORD | -P FILE] [-s PORT] SERVICE TARGET
@@ -28,8 +28,9 @@ EXTRA OPTIONS
     -v / -V
         Verbose mode. -V prints out all login attempts.
     -h / -h SERVICE
-        prints out man page, or SERVICE specific usages
+        prints out man page, or SERVICE for service-specific usages
 
 
 EXAMPLES
     sprinkler -u user1 -P pass5.txt -s 80 domainname/basicauth/ http-get
+    sprinkler -h http-post 

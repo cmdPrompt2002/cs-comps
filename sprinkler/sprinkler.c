@@ -4,8 +4,6 @@
 #include <unistd.h>
 #include <libssh/libssh.h>
 #include <pthread.h>
-#include <time.h>
-
 #include "sprinkler-http.h"
 #include "sprinkler-ssh.h"
 
@@ -21,14 +19,17 @@ FILE *usrFile;
 FILE *passFile;
 char *usrFilename = NULL;
 char *passFilename = NULL;
-clock_t lastClock ;
-clock_t nowClock;
+
 
 //Extra options
-int verbose = 0; //Three levels? 0,1,2
-float delay = 0;
+int verbose = 0; //-v or -V
+float delay = 0; //-d
 int threads = 0;
-int tls = 0;
+int tls = 0; //-S
+regex_t *checkStr = NULL; //-r
+int responseCheck = -1;
+char *inputParam = NULL; //-i
+
 
 //For printing out help message when user typed 'sprinkler -h [service | NULL]'
 void print_help_msg(char *service);
@@ -39,8 +40,6 @@ int main(int argc, char *argv[]) {
     int err = 0;
     char *errMsg = malloc(sizeof(char)*500);
     strcpy(errMsg, "Invalid usage:\n");
-    lastClock = clock();
-    nowClock = clock();
 
     /*Expected input:
 
@@ -68,20 +67,32 @@ int main(int argc, char *argv[]) {
         -p PASSWORD
             supply a password, or -P FILE to supply a password file
 
-    EXTRA OPTIONS
-        -S connect via SSL
+    EXTRA OPTIONS (type 'w' to see if applicable to service)
+        -S 
+            connect via SSL
         -d DELAY
             set a delay time (in seconds) between each login attempt
         -v / -V
             Verbose mode. -V prints out all login attempts.
-            
+        -r REGEX
+            Supply a regex (POSIX extended regex) to determine a login success (S=) or failure (F=) if found in target's response
+            Examples:
+                -r 'S=welcome to'
+                -r 'F=/login/[^\r\n]*\r\n\r\n'
+        -i PARAMETERS
+            Supply parameter names and values with the following syntax:
+                'param1=value1&param2=value2&...'
+            If a parameter corresponds to the username, set value to ^USER^
+            If a parameter corresponds to the password, set value to ^PASS^
+            Example:
+                -i 'email=^USER^&passwd=^PASS^&session=12345'
     */
     
     //Command line parsing
     int opt;
     // printf("optind: %i, arg: %s\n", optind, argv[optind]);
     while (optind < argc) {
-        if ((opt = getopt(argc, argv, ":h:s:d:u:p:U:P:vVtS")) != -1) {
+        if ((opt = getopt(argc, argv, ":h:s:d:u:p:U:P:vVtSi:r:")) != -1) {
             // printf("optind: %i, arg: %s\n", optind, argv[optind]);
             switch (opt) {
                 case 'h':
@@ -136,6 +147,26 @@ int main(int argc, char *argv[]) {
                     break;
                 case 'S':
                     tls = 1;
+                    break;
+                case 'r':
+                    checkStr = (regex_t *) malloc(sizeof(regex_t));
+                    if (!strncmp(optarg,"S=",2))
+                        responseCheck = 1;
+                    else if (!strncmp(optarg,"F=",2))
+                        responseCheck = 0;
+                    else {
+                        sprintf(errMsg + strlen(errMsg), "    Invalid usage for option -r\n");
+                        err = 1;
+                    }
+                    
+                    if (regcomp(checkStr, optarg + 2, REG_EXTENDED) == -1) {
+                        sprintf(errMsg + strlen(errMsg), "    Fails to compile regex for option -r\n");
+                        err = 1;
+                    }
+                    break;
+                case 'i':
+                    inputParam = malloc(strlen(optarg) + 1);
+                    strcpy(inputParam, optarg);
                     break;
                 case ':':
                     if (optopt == 'h') {
@@ -248,80 +279,14 @@ int main(int argc, char *argv[]) {
     //     }
     // }
 
-    //Get module specific options
-    int responseCheck = -1; //1 = failCond, 0 = successCond
-    regex_t *checkStr = NULL;
-    char *startParam = strstr(destination,"::"); 
-    if (startParam != NULL) {
-        char *endParam = strstr(startParam+2,"::");
-        startParam[0] = '\0'; //to separate the directory from user input options
-        char *param = malloc(sizeof(char)*20);
-        int optionLength;
-        int optSize = 20;
-
-        while (startParam != NULL) {
-            startParam += 4; //points to first idx of option value
-            if (endParam == NULL) { optionLength = strlen(startParam) + 1; }  
-            else { optionLength = endParam - startParam; }
-
-            if (optionLength > optSize) {
-                    param = (char *) realloc(param,optionLength); //Null terminator included
-                    optSize = optionLength;
-                }
-
-            if (!strncmp(startParam -2, "S=", 2)) {
-
-                if (checkStr != NULL) {
-                    fprintf(stderr, "[ERROR] Can only accept either success condtion S failure condition F or neither\n");
-                    exit(1);
-                } 
-                
-                checkStr = (regex_t *) malloc(sizeof(regex_t));
-                strncpy(param,startParam,optionLength);
-                printf("successCond: %s\n",param);
-                if (regcomp(checkStr, param, REG_EXTENDED) == -1) {
-                    fprintf(stderr, "Fails to compile successCond regex\n");
-                    exit(1);
-                }
-                responseCheck = 1;
-            } else if (!strncmp(startParam -2, "F=", 2)) {
-
-                if (checkStr != NULL) {
-                    fprintf(stderr, "[ERROR] Can only accept either success condtion S failure condition F or neither\n");
-                    exit(1);
-                } 
-
-                checkStr = (regex_t *) malloc(sizeof(regex_t));
-                strncpy(param,startParam,optionLength);
-                printf("failCond: %s\n",param);
-                if (regcomp(checkStr, param, REG_EXTENDED) == -1) {
-                    fprintf(stderr, "Fails to compile failCond regex\n");
-                    exit(1);
-                }
-
-                responseCheck = 0;
-
-            } else {
-                *(startParam -1) = '\0' ;
-                fprintf(stderr, "Unrecognized parameter: %s\nType 'sprinkler -U [service]' for correct usage\n",startParam-2);
-                exit(1);
-            }
-
-            startParam = strstr(startParam, "::");
-            if (startParam != NULL) {
-                endParam = strstr(startParam+2, "::");
-            }
-
-        }
-        free(param);
-    }
+    
 
     printf("\n---IT'S SPRAYIN TIME---\n\n");
     printf("Destination:%s\nPort:%i\nService:%s\n\n", destination,port,service);
 
     /*===Services===*/
     if (!strcmp(service, "ssh")) {ssh_main(usr,pass,usrFile,passFile);}
-    else if (!strncmp(service, "http",4)) {http_main(usr,pass,usrFile,passFile,tls, checkStr, responseCheck);}
+    else if (!strncmp(service, "http",4)) {http_main(usr,pass,usrFile,passFile,tls, checkStr, responseCheck, inputParam);}
     return 0;
 }
 
@@ -330,7 +295,7 @@ void print_help_msg(char *service) {
         //Standard man page
 
     } else if (!strncmp(service, "ssh",3)) {
-        //Tell user that there are no service specific options
+        printf("This service has no further options\n");
     } else if (!strncmp(service, "http-get",8)) {
 
     } else if (!strncmp(service, "http-post",9)) {

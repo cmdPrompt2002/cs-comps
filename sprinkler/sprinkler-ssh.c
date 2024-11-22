@@ -8,8 +8,6 @@
 #include "sprinkler-ssh.h"
 
 extern int verbose;
-extern clock_t lastClock;
-extern clock_t nowClock;
 extern float delay;
 
 void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile);
@@ -31,7 +29,6 @@ ssh_session getSession(Attempt attempt);*/
 
 
 void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
-    int actualDelay =0;
     if (usrFilename != NULL && passFilename != NULL) {
         while (fgets(usr, 256, usrFile) != NULL) {
             if(usr[strlen(usr)-1] == '\n') {
@@ -79,12 +76,7 @@ void ssh_main(char *usr, char *pass, FILE *usrFile, FILE *passFile) {
                 pass[strlen(pass)-1] = '\0';
             }
 
-            nowClock = clock();
-            if(nowClock - lastClock < delay) {
-                actualDelay = (int) (delay - nowClock + lastClock);
-                wait(&actualDelay);
-               
-            }
+            sleep(delay);
 
             if (sshAttempt(destination, usr, pass, my_ssh) == SSH_AUTH_SUCCESS) {
                 break;

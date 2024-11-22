@@ -241,3 +241,6 @@ Changed thing to sprinkler for all files
 Changed Makefile accordingly
 Added man page
 
+- process in http-file. What's the caveat of this? 
+- add -i option to input parameter names and values then add -r option to input regex 
+
