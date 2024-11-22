@@ -592,7 +592,7 @@ int http_post_init(int tls, char *inputParam) {
                 }
                 usrMatchResult = regexec(&regex, name, 1, &match, 0);
                 
-                char *passString = "pass|pw";
+                char *passString = "pass|pw|psw|ps";
                 if (regcomp(&regex, passString, REG_EXTENDED | REG_ICASE) != 0) {
                     fprintf(stderr, "Could not compile passString regex\n");
                     exit(1);
@@ -607,6 +607,7 @@ int http_post_init(int tls, char *inputParam) {
                     sprintf(passPrefix,"%s=",name);
                 } else if (usrMatchResult == REG_NOMATCH && passMatchResult == REG_NOMATCH) {
                     //sprintf(body + strlen(body), "%s=&",name);
+                    //No need to add anything here
                 } else {
                     fprintf(stderr, "regexec ran out of memory\n");
                 }
@@ -619,6 +620,14 @@ int http_post_init(int tls, char *inputParam) {
         free(authDetails);
     }
 
+    if (passPrefix == NULL) {
+        fpritnf(stderr, "can't find parameter name that corresponds to password. Use -i option to specify parameter names.\n");
+        exit(1);
+    } else if (usrPrefix == NULL) {
+        fpritnf(stderr, "can't find parameter name that corresponds to usernmae. Use -i option to specify parameter names\n");
+        exit(1);
+    }
+    
     reqContentLength = strlen(body) + strlen(usrPrefix) + strlen(passPrefix) + 1;
     headersLength = strlen(requestBuffer);
     fullResponseSize = 1500;
