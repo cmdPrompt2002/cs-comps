@@ -10,7 +10,7 @@ sprinkler: $(OBJS)
 	rm -f *.o
 
 sprinkler2: #Sam's compiler
-	$(CC) $(CFLAGS) -o $@ -lssh sprinkler.c sprinkler-ssh.c sprinkler-http.c -lm -lssh -lssl
+	$(CC) $(CFLAGS) -o $@ -lssh sprinkler.c sprinkler-ssh.c sprinkler-http.c -lm -lssh -lssl -lycrpto
 	rm -f *.o
 
 #gcc -o sprinkler sprinkler.c sprinkler-ssh.c sprinkler-http.c -lm -lssh -lssl -lcrypto

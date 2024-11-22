@@ -1,0 +1,6 @@
+===================Sprinkler help: ssh====================
+
+This service sends credentials via the SSH protocol, managed by libssh functions.
+To use this service, make sure libssh is installed in your system.
+
+This service has no addditional, non-global options

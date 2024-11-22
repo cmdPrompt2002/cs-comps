@@ -244,3 +244,12 @@ Added man page
 - process in http-file. What's the caveat of this? 
 - add -i option to input parameter names and values then add -r option to input regex 
 
+
+NEXT STEPS
+1. Use a vector struct for all input arrays
+2. Make an options struct that stores the additional options??
+3. Use valgrind to check for memory leaks
+4. Use gprof to see how execution speed can be improved
+5. The -i option: we want it to work for http-get too
+6. 
+

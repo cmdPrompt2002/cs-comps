@@ -3,9 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <libssh/libssh.h>
-#include <pthread.h>
 #include "sprinkler-http.h"
 #include "sprinkler-ssh.h"
+#include <regex.h>
 
 //Example command: ./thing -U usernames.txt -P passwords.txt -s 22 ssh 192.168.64.4
 
@@ -40,53 +40,6 @@ int main(int argc, char *argv[]) {
     int err = 0;
     char *errMsg = malloc(sizeof(char)*500);
     strcpy(errMsg, "Invalid usage:\n");
-
-    /*Expected input:
-
-    NAME
-        sprinkler - a very fast password sprayer that works for ssh, http-get (basic auth), and http-post
-
-    SYNOPSIS
-        sprinkler [-u USERNAMES | -U FILE] [-p PASSWORD | -P FILE] [-s PORT] SERVICE TARGET
-        sprinkler [-h SERVICE | -h]
-    
-    DESCRIPTION
-        sprinkler is a fast password sprayer that supports the following services:
-            ssh, http-get, http-post
-
-        This tool allows researchers and pen-testers to see how easy it would be to gain unauthorized access to a remote server.
-
-    MANDATORY OPTIONS
-        TARGET      The server (and directory, if applicable) to attack, can be an IPv4 address or domain name
-        SERVICE     The target's login service. Type 'sprinkler -h services' to list the protocols available
-        
-        -s PORT     
-            the target server's port
-        -u USERNAME
-            supply a login username, or -U FILE to supply a username file
-        -p PASSWORD
-            supply a password, or -P FILE to supply a password file
-
-    EXTRA OPTIONS (type 'w' to see if applicable to service)
-        -S 
-            connect via SSL
-        -d DELAY
-            set a delay time (in seconds) between each login attempt
-        -v / -V
-            Verbose mode. -V prints out all login attempts.
-        -r REGEX
-            Supply a regex (POSIX extended regex) to determine a login success (S=) or failure (F=) if found in target's response
-            Examples:
-                -r 'S=welcome to'
-                -r 'F=/login/[^\r\n]*\r\n\r\n'
-        -i PARAMETERS
-            Supply parameter names and values with the following syntax:
-                'param1=value1&param2=value2&...'
-            If a parameter corresponds to the username, set value to ^USER^
-            If a parameter corresponds to the password, set value to ^PASS^
-            Example:
-                -i 'email=^USER^&passwd=^PASS^&session=12345'
-    */
     
     //Command line parsing
     int opt;
@@ -233,51 +186,6 @@ int main(int argc, char *argv[]) {
     }
     free(errMsg);
 
-    // while (optind < argc) {
-    //     int save = optind;
-    //     opt = getopt(argc, argv, ":s:u:U:p:P:");
-        
-    //     printf("optind: %i, option: %s\n", optind, argv[optind]);
-        
-    //     switch (opt) {
-    //         case 's':
-    //             port = atoi(optarg);
-    //             break;
-    //         case 'u':
-    //             usr = optarg;
-    //             break;
-    //         case 'U':
-    //             usrFilename = optarg;
-    //             break;
-    //         case 'p':
-    //             pass = optarg;
-    //             break;
-    //         case 'P':
-    //             passFilename = optarg;
-    //             break;
-    //         case ':':
-    //             printf("Option -%c requires an argument\n", optopt);
-    //             exit(1);
-    //             break;
-    //         case '?':
-    //             printf("Unknown option -%c", optopt);
-    //             exit(1);
-    //             break;
-    //         case -1:
-    //             //A non-option argument: must be either destination or service
-    //             if (!strncmp(argv[optind], "ssh", 4)) {
-    //                 service = "ssh";
-    //             } else {
-    //                 destination = argv[optind];
-    //             }
-    //             optind++;
-    //             break;
-    //         default:
-    //             exit(1);
-    //             break;
-
-    //     }
-    // }
 
     
 

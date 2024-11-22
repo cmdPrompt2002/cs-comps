@@ -1,0 +1,14 @@
+===================Sprinkler help: http-get====================
+
+This service only supports HTTP basic auth protocol
+
+SERVICE-SPECIFIC OPTIONS
+
+    -S 
+        connect via SSL
+    -r REGEX
+        Supply a regex (POSIX extended regex) to determine a login success (S=) or failure (F=) if found in target's response.
+        If no regex is supplied, then a server response code of 200 OK defaults to login success
+        Examples:
+            -r 'S=welcome to'
+            -r 'F=/login/[^\r\n]*\r\n\r\n'

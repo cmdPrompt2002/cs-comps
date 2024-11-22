@@ -391,7 +391,7 @@ int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int respo
 
 int http_post_init(int tls, char *inputParam) {
     //Initialize the global vars
-    requestBuffer = malloc(sizeof(char)*1000);
+    requestBuffer = malloc(sizeof(char)*2000);
     body = malloc(sizeof(char)*500);
     body[0] = '\0';
 
@@ -600,10 +600,10 @@ int http_post_init(int tls, char *inputParam) {
                 passMatchResult = regexec(&regex, name, 1, &match, 0);
 
                 if (usrMatchResult == 0) {
-                    usrPrefix = malloc(sizeof(char)*(strlen(name)+1));
+                    usrPrefix = malloc(sizeof(char)*(strlen(name)+2));
                     sprintf(usrPrefix,"%s=",name);
                 } else if (passMatchResult == 0) {
-                    passPrefix = malloc(sizeof(char)*(strlen(name)+1));
+                    passPrefix = malloc(sizeof(char)*(strlen(name)+2));
                     sprintf(passPrefix,"%s=",name);
                 } else if (usrMatchResult == REG_NOMATCH && passMatchResult == REG_NOMATCH) {
                     //sprintf(body + strlen(body), "%s=&",name);
