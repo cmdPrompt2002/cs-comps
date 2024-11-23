@@ -3,6 +3,10 @@
 NAME
     sprinkler - a very fast password sprayer that works for ssh, http-get (basic auth), and http-post
 
+DESIGNERS
+    Prompt Eua-anant
+    Sam Ederington
+
 SYNOPSIS
     sprinkler [-u USERNAMES | -U FILE] [-p PASSWORD | -P FILE] [-s PORT] SERVICE TARGET
     sprinkler [-h SERVICE | -h]
@@ -19,9 +23,9 @@ MANDATORY OPTIONS
     
     -s PORT     
         the target server's port
-    -u USERNAME
+    -u USERNAME / -U FILE
         supply a login username, or -U FILE to supply a username list, one line per username
-    -p PASSWORD
+    -p PASSWORD / -P FILE
         supply a password, or -P FILE to supply a password list, one line per password
 
 EXTRA GLOBAL OPTIONS 
