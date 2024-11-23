@@ -453,8 +453,6 @@ int http_post_init(int tls, char *inputParam) {
         char *authDetails = malloc(sizeof(char)*authDetailsSize);
 
         //Send the HTTP request
-        
-
         if (tls) {
             sprinkler_tls_send(ssl);
         } else {

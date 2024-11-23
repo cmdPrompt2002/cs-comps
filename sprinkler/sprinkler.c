@@ -215,13 +215,13 @@ void print_help_msg(char *service) {
     
     if (service == NULL) {
         //Standard man page
-        helpFile = fopen("./help/sprinkler-help.txt", "r");
+        helpFile = fopen("/usr/local/bin/sprinkler-help/sprinkler-help.txt", "r");
     } else if (!strncmp(service, "ssh",3)) {
-        helpFile = fopen("./help/sprinkler-help-ssh.txt", "r");
+        helpFile = fopen("/usr/local/bin/sprinkler-help/sprinkler-help-ssh.txt", "r");
     } else if (!strncmp(service, "http-get",8)) {
-        helpFile = fopen("./help/sprinkler-help-get.txt", "r");
+        helpFile = fopen("/usr/local/bin/sprinkler-help/sprinkler-help-get.txt", "r");
     } else if (!strncmp(service, "http-post",9)) {
-        helpFile = fopen("./help/sprinkler-help-post.txt", "r");
+        helpFile = fopen("/usr/local/bin/sprinkler-help/sprinkler-help-post.txt", "r");
     } else {
         printf("Service unknown or not supported: %s\n", service);
         exit(1);

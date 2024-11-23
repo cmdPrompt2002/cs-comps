@@ -3,6 +3,7 @@ CC = gcc
 CFLAGS = -g 
 OS = OSX
 ARCH = ARM
+LIBSSH = -rpath /Users/prompt/Desktop/CS338/cs-comps/sprinkler/prompt_ssh
 
 ifeq ($(OS),Windows_NT)
 	OS = WIN32
@@ -38,19 +39,19 @@ all: sprinkler
 
 sprinkler: $(SRCS)
 ifeq ($(OS),OSX)
-	$(CC) $(CFLAGS) -rpath ./prompt_ssh/ -lssh -lssl -lcrypto $(SRCS) -o $@
+	$(CC) $(CFLAGS) $(LIBSSH) -lssh -lssl -lcrypto $(SRCS) -o $@
 endif
 ifeq ($(OS),LINUX)
 	$(CC) $(CFLAGS) -o $@ -lssh $(SRCS) -lm -lssh -lssl -lcrypto
 endif
 	rm -f *.o
 
-sprinkler2: $(SRCS) #Sam's compiler
-	$(CC) $(CFLAGS) -o $@ -lssh sprinkler.c sprinkler-ssh.c sprinkler-http.c -lm -lssh -lssl -lcrypto
-	rm -f *.o
+install: sprinkler
+	sudo cp -r ./help /usr/local/bin/sprinkler-help
+	sudo cp sprinkler /usr/local/bin/sprinkler
 
 clean:
 	rm -f *.o
-	rm -f thing
+	rm -f sprinkler
 
 

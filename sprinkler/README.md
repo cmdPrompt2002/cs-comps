@@ -6,11 +6,11 @@ Sprinkler is a password sprayer developed by Prompt Eua-anant and Sam Ederington
 
 For more information, visit [LINK]
 
-
-a little background info: what this project was for (comps), where the project description is (link to my original writeup of the project), etc.
-
 ## Installation
 
 
 installation/setup instructions, including installation of dependencies (e.g., third-party python modules, tools to be installed with "sudo apt install xyz",...), how to set up a suitable attack target, etc.
 running instructions
+
+'sudo apt-get libssl-dev libssh-dev'
+
