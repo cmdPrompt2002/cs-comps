@@ -1,3 +1,4 @@
+
 NAME
     sprinkler - a very fast password sprayer that works for ssh, http-get (basic auth), and http-post
 
@@ -27,3 +28,4 @@ EXTRA GLOBAL OPTIONS
         set a delay time in seconds between each login attempt
     -v / -V
         Verbose mode. -V prints out all login attempts.
+

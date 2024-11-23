@@ -39,18 +39,18 @@ int main(int argc, char *argv[]) {
     //Flag for printing error messages
     int err = 0;
     char *errMsg = malloc(sizeof(char)*500);
-    strcpy(errMsg, "Invalid usage:\n");
+    strcpy(errMsg, "[ERROR] Invalid usage:\n");
     
     //Command line parsing
     int opt;
     // printf("optind: %i, arg: %s\n", optind, argv[optind]);
     while (optind < argc) {
-        if ((opt = getopt(argc, argv, ":h:s:d:u:p:U:P:vVtSi:r:")) != -1) {
+        if ((opt = getopt(argc, argv, ":h:H:s:d:u:p:U:P:vVtSi:r:")) != -1) {
             // printf("optind: %i, arg: %s\n", optind, argv[optind]);
+            
             switch (opt) {
                 case 'h':
-                    service = optarg;
-                    print_help_msg(service);
+                    print_help_msg(optarg);
                     exit(0);
                     break;
                 case 's':
@@ -147,8 +147,22 @@ int main(int argc, char *argv[]) {
                     break;
                 }
                 if (!strncmp(argv[optind], "ssh", 3)) {
+                    if (inputParam != NULL) {
+                        sprintf(errMsg + strlen(errMsg), "    option -i unsupported by service: ssh\n");
+                        err = 1;
+                    } if (tls != 0) {
+                        sprintf(errMsg + strlen(errMsg), "    option -S unsupported by service: ssh\n");
+                        err = 1;
+                    } if (checkStr != NULL) {
+                        sprintf(errMsg + strlen(errMsg), "    option -r unsupported by service: ssh\n");
+                        err = 1;
+                    }
                     service = "ssh";
                 } else if (!strncmp(argv[optind], "http-get", 8)) {
+                    if (inputParam != NULL) {
+                        sprintf(errMsg + strlen(errMsg), "    option -i unsupported by service: ssh\n");
+                        err = 1;
+                    } 
                     service = malloc(sizeof(char)*9);
                     strcpy(service, "http-get");
                 } else if (!strncmp(argv[optind], "http-post", 9)) {
@@ -180,7 +194,7 @@ int main(int argc, char *argv[]) {
         sprintf(errMsg + strlen(errMsg), "    Destination port is missing\n");
         err = 1; 
     } if (err == 1) {
-        sprintf(errMsg + strlen(errMsg), "type './sprinkler -h' for correct usage\n");
+        sprintf(errMsg + strlen(errMsg), "type './sprinkler -h' for correct usage\nType './sprinkler -h SERVICE' for additional SERVICE options\n");
         fprintf(stderr, "%s", errMsg);
         exit(1);
     }
@@ -189,7 +203,7 @@ int main(int argc, char *argv[]) {
 
     
 
-    printf("\n---IT'S SPRAYIN TIME---\n\n");
+    printf("\n---SPRINKLER INITIALIZATION SEQUENCE ENGAGED. DUN DUN DUNNNNN---\n\n");
     printf("Destination:%s\nPort:%i\nService:%s\n\n", destination,port,service);
 
     /*===Services===*/
@@ -199,17 +213,23 @@ int main(int argc, char *argv[]) {
 }
 
 void print_help_msg(char *service) {
+    FILE *helpFile;
+    
     if (service == NULL) {
         //Standard man page
-
+        helpFile = fopen("./help/sprinkler-help.txt", "r");
     } else if (!strncmp(service, "ssh",3)) {
-        printf("This service has no further options\n");
+        helpFile = fopen("./help/sprinkler-help-ssh.txt", "r");
     } else if (!strncmp(service, "http-get",8)) {
-
+        helpFile = fopen("./help/sprinkler-help-get.txt", "r");
     } else if (!strncmp(service, "http-post",9)) {
-
+        helpFile = fopen("./help/sprinkler-help-post.txt", "r");
     } else {
         printf("Service unknown or not supported: %s\n", service);
         exit(1);
+    }
+    char c;
+    while ((c = fgetc(helpFile)) != EOF) {
+        printf("%c",c);
     }
 }

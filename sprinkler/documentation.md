@@ -246,7 +246,8 @@ Added man page
 
 
 NEXT STEPS
-1. Use a vector struct for all input arrays
+1. Tidy up the sprinkler_recv function. There's three huge duplicated chunks.
+2. Use a vector struct for all input arrays
 2. Make an options struct that stores the additional options??
 3. Use valgrind to check for memory leaks
 4. Use gprof to see how execution speed can be improved

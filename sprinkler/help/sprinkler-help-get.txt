@@ -1,3 +1,4 @@
+
 ===================Sprinkler help: http-get====================
 
 This service only supports HTTP basic auth protocol
@@ -12,3 +13,5 @@ SERVICE-SPECIFIC OPTIONS
         Examples:
             -r 'S=welcome to'
             -r 'F=/login/[^\r\n]*\r\n\r\n'
+
+===============================================================

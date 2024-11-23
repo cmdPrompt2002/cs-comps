@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-//#include <fcntl.h>
 #include <netdb.h>
 #include <math.h>
 #include <errno.h>
@@ -24,12 +23,12 @@
 //cs338.jeffondich.com/fdf/login::(F|S)=$'STRING'
 
 //http-get example ./sprinkler -u cs338 -p password -s 80 cs338.jeffondich.com/basicauth/ http-get 
-//http-get example ./sprinkler -U usernames.txt -P passwords.txt -s 80 cs338.jeffondich.com/basicauth/ http-get
+//http-get example ./sprinkler -U pass5.txt -P pass5.txt -s 80 cs338.jeffondich.com/basicauth/ http-get
 //http-post example ./sprinkler -u bob@example.com -p bob -s 80 cs338.jeffondich.com/fdf/login http-post
-//http-post example ./sprinkler -U usernames.txt -P passwords.txt -s 80 cs338.jeffondich.com/fdf/login http-post
+//http-post example ./sprinkler -U pass5.txt -P pass5.txt -s 80 cs338.jeffondich.com/fdf/login http-post
 // en.wikipedia.org/wiki/Special:UserLogin
 // ./sprinkler -U usernames.txt -P passwords.txt -s 443 -S authenticationtest.com/HTTPAuth/ http-get
-// ./sprinkler -U usernames.txt -P passwords.txt -s 443 -S authenticationtest.com/HTTPAuth/::F=$'Location:[^\r\n]*loginFail/\r\n' http-get
+// ./sprinkler -U pass5.txt -P pass5.txt -s 443 -S -r 'F=loginFail' authenticationtest.com/HTTPAuth/ http-get
 // ./sprinkler -U usernames.txt -P passwords.txt -s 443 -S authenticationtest.com/complexAuth/::F=$'Location:[^\r\n]*loginFail/\r\n' http-post
 
 int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, regex_t *checkStr, int responseCheck, char *inputParam);
@@ -45,7 +44,7 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
 
 void sprinkler_send();
 void sprinkler_tls_send(SSL *ssl);
-void sprinkler_recv(char *fullResponse, int fullResponseSize, int receiveAll);
+void sprinkler_recv(char *fullResponse, int fullResponseSize, int receiveAll, int tls);
 void sprinkler_tls_recv(char *fullResponse, int fullResponseSize,int receiveAll);
 
 char *to_base64(const unsigned char *data, size_t input_length, char *encoded_data);
@@ -72,7 +71,6 @@ extern float delay;
 //HTTP request and response vars
 char *passBuffer; //for http-get basicauth only
 char *requestBuffer;
-//char responseBuffer[MAX_RESPONSE_SIZE];
 char *fullResponse;
 int fullResponseSize;
 
@@ -82,8 +80,6 @@ char *usrPrefix;
 char *body;
 int reqContentLength = 0;
 int headersLength;
-regex_t *successCond = NULL;
-regex_t *failCond = NULL;
 
 //TLS 
 SSL_CTX *ctx = NULL;
@@ -136,7 +132,7 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, reg
     hints.ai_socktype = SOCK_STREAM; // Use TCP, not UDP
 
     if ((status = getaddrinfo(host, charPort, &hints, &servinfo)) != 0) {
-        fprintf(stderr, "[ERROR] getaddrinfo error: %s\n", gai_strerror(status));
+        fprintf(stderr,"[ERROR] getaddrinfo error: %s\n", gai_strerror(status));
         exit(1);
     }
 
@@ -147,14 +143,14 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, reg
     if (tls) {
         ctx = SSL_CTX_new(TLS_client_method());
         if (ctx == NULL) {
-            fprintf(stderr,"Failed to create the SSL_CTX\n");
+            fprintf(stderr,"[ERROR] Failed to create the SSL_CTX\n");
             exit(1);
         }
 
         SSL_CTX_set_options(ctx, SSL_OP_ALL);
 
         if (!SSL_CTX_set_default_verify_paths(ctx)) {
-            fprintf(stderr,"Failed to set the default trusted certificate store\n");
+            fprintf(stderr,"[ERROR] Failed to set the default trusted certificate store\n");
             exit(1);
         }
         
@@ -240,9 +236,10 @@ int sprinkler_connect(struct addrinfo *servinfo) {
             continue;
         }
 
+        //For future work: allowing asynchronous I/O via a non-blocking socket
         //Set the socket to non-blocking mode
         // if (fcntl(sock, F_SETFL, O_NONBLOCK) < 0) {
-        //     fprintf(stderr,"fcntl failed");
+        //     fprintf(stderr,"[ERROR] fcntl failed");
         //     exit(1);
         // }
         
@@ -253,7 +250,7 @@ int sprinkler_connect(struct addrinfo *servinfo) {
     }
     
     if (p == NULL) {
-        fprintf(stderr, "Connection failure: %s\n",strerror(errno));
+        fprintf(stderr,"[ERROR] Connection failure: %s\n",strerror(errno));
         exit(1); //Might not wanna exit right away. Should retry the connection!
     }
     return 0;
@@ -265,7 +262,7 @@ SSL *sprinkler_tls_connect(SSL_CTX *ctx) {
     
     SSL *ssl = SSL_new(ctx);
     if (ssl == NULL) {
-        fprintf(stderr,"Failed to create the SSL object\n");
+        fprintf(stderr,"[ERROR] Failed to create the SSL object\n");
         SSL_clear(ssl);
         exit(1);
     }
@@ -277,19 +274,19 @@ SSL *sprinkler_tls_connect(SSL_CTX *ctx) {
     * to connect to in case the server supports multiple hosts. SNI = server name indication
     */
     if (!SSL_set_tlsext_host_name(ssl, host)) {
-        fprintf(stderr,"Failed to set the SNI hostname\n");
+        fprintf(stderr,"[ERROR] Failed to set the SNI hostname\n");
         exit(1);
     }
 
     if (!SSL_set_fd(ssl,sock)) {
-        fprintf(stderr,"SSL_set_fd failed.\n");
+        fprintf(stderr,"[ERROR] SSL_set_fd failed.\n");
         exit(1);
     }
 
     /* Do the TLS handshake with the server */
     if (SSL_connect(ssl) < 1) {
         err = ERR_get_error();
-        fprintf(stderr, "Failed to connect to server: %s\n", ERR_error_string(err, NULL));
+        fprintf(stderr,"[ERROR] Failed to connect to server: %s\n", ERR_error_string(err, NULL));
         exit(1);
     }
 
@@ -304,7 +301,7 @@ int http_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int response
     } else if (!strcmp(type,"POST")) {
         return http_post_attempt(usr,pass, tls, checkStr, responseCheck);
     } else {
-        fprintf(stderr, "Service %s unrecognized\n",service);
+        fprintf(stderr,"[ERROR] Service %s unrecognized\n",service);
         exit(1);
     }
     return 0;
@@ -313,7 +310,7 @@ int http_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int response
 int http_get_init() {
     passBuffer = malloc(sizeof(char)*512); //stores "username:password" in unencoded plaintext
     requestBuffer = malloc(sizeof(char)*700);
-    fullResponseSize = 450;
+    fullResponseSize = 1000;
     fullResponse = malloc(sizeof(char)*fullResponseSize);
     return 0;
 }
@@ -339,14 +336,11 @@ int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int respo
 
     if (tls) {
         sprinkler_tls_send(ssl);
-        sprinkler_tls_recv(fullResponse, fullResponseSize, 0);
-        // printf("%s\n",fullResponse);
     } else {
         sprinkler_send();
-        sprinkler_recv(fullResponse, fullResponseSize, 0);
-        //printf("fullResponseSize: %d\n",fullResponseSize);
-        //printf("%s\n=======================\n",fullResponse);
     }
+    sprinkler_recv(fullResponse, fullResponseSize, 1, tls);
+    //printf("%s\n",fullResponse);
     
     int ret;
     if (responseCheck == 1) {
@@ -359,7 +353,7 @@ int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int respo
             }
             return HTTP_AUTH_FAILURE;
         } else {
-            fprintf(stderr, "Regexec of successCond failed\n");
+            fprintf(stderr,"[ERROR] Regexec failed. Check input string for -i\n");
             exit(1);
         }
 
@@ -373,7 +367,7 @@ int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int respo
             printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
             return HTTP_AUTH_SUCCESS;
         } else {
-            fprintf(stderr, "Regexec of failCond failed\n");
+            fprintf(stderr,"[ERROR] Regexec failed. Check input string for -i\n");
             exit(1);
         }
     } else {
@@ -407,18 +401,18 @@ int http_post_init(int tls, char *inputParam) {
         while (cur != NULL) {
             sep = strstr(cur, "=");
             if (sep == NULL || sep - cur <= 1) {
-                fprintf(stderr,"invalid usage for option -i: %s\n", inputParam);
+                fprintf(stderr,"[ERROR] invalid usage for option -i: %s\n", inputParam);
                 exit(1);
             }
             and = strstr(sep, "&");
             if (and != NULL && and - sep <= 0) {
-                fprintf(stderr, "invalid usage for option -i: %s\n", inputParam);
+                fprintf(stderr,"[ERROR] invalid usage for option -i: %s\n", inputParam);
                 exit(1);
             }
             
             if (!strncmp(sep+1,"^USER^",6)) {
                 if (usrPrefix != NULL) {
-                    fprintf(stderr, "Invalid usage for option -i: %s\n", inputParam);
+                    fprintf(stderr,"[ERROR] Invalid usage for option -i: %s\n", inputParam);
                     exit(1);
                 }
                 usrPrefix = malloc(sizeof(char)*(sep-cur+2)); 
@@ -427,7 +421,7 @@ int http_post_init(int tls, char *inputParam) {
                 // printf("usrPrefix: %s\n", usrPrefix);
             } else if (!strncmp(sep+1, "^PASS^",6)) {
                 if (passPrefix != NULL) {
-                    fprintf(stderr, "Invalid usage for option -i: %s\n", inputParam);
+                    fprintf(stderr,"[ERROR] Invalid usage for option -i: %s\n", inputParam);
                     exit(1);
                 }
                 passPrefix = malloc(sizeof(char)*(sep-cur+2));
@@ -472,11 +466,10 @@ int http_post_init(int tls, char *inputParam) {
 
         if (tls) {
             sprinkler_tls_send(ssl);
-            sprinkler_tls_recv(authDetails, authDetailsSize, 0);
         } else {
-            sprinkler_send();
-            sprinkler_recv(authDetails, authDetailsSize, 1);
+            sprinkler_send(); 
         }
+        sprinkler_recv(authDetails, authDetailsSize, 1, tls);
         
         //authDetails = sprinkler_recv(0,authDetails,authDetailsSize);
         
@@ -489,7 +482,7 @@ int http_post_init(int tls, char *inputParam) {
         char *formEndTag = "</form>";
         
         if (regcomp(&regex, formTag, REG_EXTENDED | REG_ICASE) != 0) {
-            fprintf(stderr, "Could not compile formTag regex\n");
+            fprintf(stderr,"[ERROR] Could not compile formTag regex\n");
             exit(1);
         }
 
@@ -500,7 +493,7 @@ int http_post_init(int tls, char *inputParam) {
         int formTag_end; //End idx of <form ...>
         int formEndTag_start; //Start idx of </form>
         if (regexec(&regex, authDetails, 1, &match, 0) != 0) {
-            fprintf(stderr,"Can't find formTag. Change service.\n");
+            fprintf(stderr,"[ERROR] Can't find formTag. Change service.\n");
             exit(1);
         } 
     
@@ -509,12 +502,12 @@ int http_post_init(int tls, char *inputParam) {
 
         //Search for the </form> tag that corresponds to the tag above
         if (regcomp(&regex, formEndTag, REG_EXTENDED) != 0) {
-            fprintf(stderr, "Could not compile formEndTag regex\n");
+            fprintf(stderr,"[ERROR] Could not compile formEndTag regex\n");
             exit(1);
         }
         
         if (regexec(&regex, authDetails + formTag_end, 1, &match, 0) != 0) {
-            fprintf(stderr,"Can't find formEndTag. Change service.\n");
+            fprintf(stderr,"[ERROR] Can't find formEndTag. Change service.\n");
             exit(1);
         }
         formEndTag_start = formTag_end + match.rm_so;
@@ -543,7 +536,7 @@ int http_post_init(int tls, char *inputParam) {
         
             //Prepare the inputTag regex
             if (regcomp(&regex, inputTag, REG_EXTENDED) != 0) {
-            fprintf(stderr, "Could not compile inputTag regex\n");
+            fprintf(stderr,"[ERROR] Could not compile inputTag regex\n");
             exit(1);
             } 
             //Search for the inputTag sequence
@@ -587,14 +580,14 @@ int http_post_init(int tls, char *inputParam) {
                 //Prepare usr string regex
                 char *usrString = "usr|user|email|name";
                 if (regcomp(&regex, usrString, REG_EXTENDED | REG_ICASE) != 0) {
-                    fprintf(stderr, "Could not compile usrString regex\n");
+                    fprintf(stderr,"[ERROR] Could not compile usrString regex\n");
                     exit(1);
                 }
                 usrMatchResult = regexec(&regex, name, 1, &match, 0);
                 
                 char *passString = "pass|pw|psw|ps";
                 if (regcomp(&regex, passString, REG_EXTENDED | REG_ICASE) != 0) {
-                    fprintf(stderr, "Could not compile passString regex\n");
+                    fprintf(stderr,"[ERROR] Could not compile passString regex\n");
                     exit(1);
                 }
                 passMatchResult = regexec(&regex, name, 1, &match, 0);
@@ -609,7 +602,7 @@ int http_post_init(int tls, char *inputParam) {
                     //sprintf(body + strlen(body), "%s=&",name);
                     //No need to add anything here
                 } else {
-                    fprintf(stderr, "regexec ran out of memory\n");
+                    fprintf(stderr,"[ERROR] regexec ran out of memory\n");
                 }
 
                 
@@ -621,10 +614,10 @@ int http_post_init(int tls, char *inputParam) {
     }
 
     if (passPrefix == NULL) {
-        fprintf(stderr, "can't find parameter name that corresponds to password. Use -i option to specify parameter names.\n");
+        fprintf(stderr,"[ERROR] can't find parameter name that corresponds to password. Use -i to specify parameter names.\n");
         exit(1);
     } else if (usrPrefix == NULL) {
-        fprintf(stderr, "can't find parameter name that corresponds to usernmae. Use -i option to specify parameter names\n");
+        fprintf(stderr,"[ERROR] can't find parameter name that corresponds to usernmae. Use -i to specify parameter names.\n");
         exit(1);
     }
     
@@ -645,13 +638,11 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
     
     if (tls) {
         sprinkler_tls_send(ssl);
-        sprinkler_tls_recv(fullResponse, fullResponseSize, 0);
     } else {
         sprinkler_send();
-        sprinkler_recv(fullResponse,fullResponseSize, 1);
-        //printf("%s\n=======================\n",fullResponse);
-        
     }
+    sprinkler_recv(fullResponse,fullResponseSize, 1, tls);
+    //printf("%s\n=======================\n",fullResponse);
 
     //Check whether response contains successCond or failCond. 
     //If neither conds are supplied by the user, 
@@ -668,7 +659,7 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
             }
             return HTTP_AUTH_FAILURE;
         } else {
-            fprintf(stderr, "regexec of successCond failed\n");
+            fprintf(stderr,"[ERROR] regexec failed. Check input string for -i\n");
             exit(1);
         }
 
@@ -683,7 +674,7 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
             printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
             return HTTP_AUTH_SUCCESS;
         } else {
-            fprintf(stderr, "regexec of successCond failed\n");
+            fprintf(stderr,"[ERROR] regexec failed. Check input string for -i\n");
             exit(1);
         }
 
@@ -693,13 +684,13 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
         regex_t locationRegex;
         regmatch_t match[2];
         if (regcomp(&statusCodeRegex, "HTTP/1.1 3[^\r\n]*\r\n",REG_EXTENDED) != 0) {
-            fprintf(stderr, "Could not compile statusCodeRegex regex\n");
+            fprintf(stderr,"[ERROR] Could not compile statusCodeRegex regex\n");
             exit(1);
         }
         if (regexec(&statusCodeRegex,fullResponse, 1,match, 0) == 0) {
             
             if (regcomp(&locationRegex, "Location: ([^\r\n]*)\r\n",REG_EXTENDED) != 0) {
-                fprintf(stderr, "Could not compile locationRegex regex\n");
+                fprintf(stderr,"[ERROR] Could not compile locationRegex regex\n");
                 exit(1);
             }
             if (regexec(&locationRegex,fullResponse, 2,match, 0) == 0) {
@@ -738,10 +729,10 @@ void sprinkler_send() {
     bytes_sent = send(sock, requestBuffer, requestLength, 0);
     
     if (bytes_sent == -1) {
-        fprintf(stderr, "Failed to send the HTTP request\n");
+        fprintf(stderr,"[ERROR] Failed to send the HTTP request\n");
         exit(1);
     } else if (bytes_sent != requestLength) {
-        fprintf(stderr,"Request buffer too large to send in one go\nPrompt needs to make better code\n");
+        fprintf(stderr,"[ERROR] Request buffer too large to send in one go\nPrompt needs to make better code\n");
         exit(1);
     }
     
@@ -753,10 +744,10 @@ void sprinkler_tls_send(SSL *ssl) {
 
     //Send the HTTP request
     if (!SSL_write_ex(ssl, requestBuffer, requestLength, &written)) {
-        fprintf(stderr, "Failed to send HTTP request using TLS\n");
+        fprintf(stderr,"[ERROR] Failed to send HTTP request using TLS\n");
         exit(1);
     } else if (written != requestLength) {
-        fprintf(stderr,"Request buffer too large to send in one go\nPrompt needs to make better code\n");
+        fprintf(stderr,"[ERROR] Request buffer too large to send in one go\nPrompt needs to make better code\n");
         exit(1);
     }
     
@@ -777,7 +768,7 @@ INPUTS
 OUTPUT
     None
 */
-void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
+void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
     
     /* Bytes received from a single call to recv */
     int bytesReceived = 0;
@@ -806,29 +797,62 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
     /* If server's response uses chunked encoding, then no Content-Length header. Need to call recv until endBody marker is found */
     int chunked = 0;
 
+    /* For TLS - error code returned by SSL_get_error function */
+    int err = 0;
+
+    /*For TLS - value returned by the SSL_read_ex function*/
+    int retValue = 0;
+    
     //Get the Content-Length header value
     while (endHeader == NULL && bytesToRead > 0) {
 
-        while ((bytesReceived = recv(sock, buf + totalBytesReceived, bytesToRead, 0)) <= 0) {
-            close(sock);
-            if (numFails > 3) {
-                fprintf(stderr,"Reattempts failed: %s\n",strerror(errno));
-                // printf("Server's last response: %s\n", buf);
-                // printf("Current request: %s\n", requestBuffer);
-                // printf("%s\n",strerror(errno));
-                exit(1);
+        if (!tls) {
+            while ((bytesReceived = recv(sock, buf + totalBytesReceived, bytesToRead, 0)) <= 0) {
+                close(sock);
+                if (numFails > 3) {
+                    fprintf(stderr,"[ERROR] Reattempts failed: %s\n",strerror(errno));
+                    // printf("Server's last response: %s\n", buf);
+                    // printf("Current request: %s\n", requestBuffer);
+                    // printf("%s\n",strerror(errno));
+                    exit(1);
+                }
+
+                if (bytesReceived == -1 && verbose == 1) 
+                    printf("[VERBOSE] sprinkler_recv: recv failed. Reattempting...\n");
+                else if (bytesReceived == 0 && verbose == 1)
+                    printf("[VERBOSE] sprinkler_recv: server closed connection. Reconnecting...\n");
+
+                sprinkler_connect(servinfo);
+                sprinkler_send();
+                numFails++;
             }
+        } else {
+            
+            while ((retValue = SSL_read_ex(ssl, buf + totalBytesReceived, bytesToRead, (size_t *)(&bytesReceived))) <= 0) {
 
-            if (bytesReceived == -1 && verbose == 1) 
-                fprintf(stderr,"[VERBOSE] sprinkler_recv: recv failed. Reattempting...\n");
-            else if (bytesReceived == 0 && verbose == 1)
-                fprintf(stderr,"[VERBOSE] sprinkler_recv: server closed connection. Reconnecting...\n");
+                if (numFails > 3) {
+                    fprintf(stderr,"[ERROR] sprinkler_tls_recv failed\n");
+                    exit(1);
+                }
 
-            sprinkler_connect(servinfo);
-            sprinkler_send();
-            numFails++;
+                if (verbose == 1) {
+                    err = SSL_get_error(ssl,retValue);
+                    if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
+                        printf("[VERBOSE] sprinkler_tls_recv: server closed connection. Reconnecting...\n");  
+                    } else {
+                        printf("[VERBOSE] sprinkler_tls_recv: SSL_read_ex: %s\n", ERR_error_string(err, NULL));
+                    }
+                }
+
+                SSL_free(ssl); 
+                close(sock);
+                sprinkler_connect(servinfo);
+                ssl = sprinkler_tls_connect(ctx);
+                sprinkler_tls_send(ssl);
+                numFails++;
+            }
         }
-
+        
         buf[bytesReceived] = '\0';
         bytesToRead -= bytesReceived;
         totalBytesReceived += bytesReceived;
@@ -837,7 +861,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
     }
    
     if (endHeader == NULL) {
-        fprintf(stderr, "Headers length larger than bufSize. Prompt needs better code.\n");
+        fprintf(stderr,"[ERROR] Headers length larger than bufSize. Prompt needs better code.\n");
         //printf("%s\n",buf);
         exit(1);
     }
@@ -848,7 +872,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
     
     char *contentLengthString = "Content-Length: ([^\r\n]*)\r\n"; 
     if (regcomp(&regex, contentLengthString ,REG_EXTENDED) != 0) {
-        fprintf(stderr, "Could not compile contentLength regex\n");
+        fprintf(stderr,"[ERROR] Could not compile contentLength regex\n");
         exit(1);
     }
     
@@ -891,7 +915,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
             chunked = 1;
             endBody = strstr(buf,"\r\n0\r\n");
         } else {
-            fprintf(stderr,"Server's response is unsupported. Missing Content-Length or chunked transfer encoding\n");
+            fprintf(stderr,"[ERROR] Server's response is unsupported. Missing Content-Length or chunked transfer encoding\n");
             exit(1);
         }
 
@@ -908,7 +932,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
         }
         
     } else {
-        fprintf(stderr,"Regexec of contentLengthString failed\n");
+        fprintf(stderr,"[ERROR] Regexec of contentLengthString failed\n");
         exit(1);
     }
     
@@ -918,29 +942,56 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
     //printf("BytesToRead: %d\nEndBody: %s\n",bytesToRead,endBody);
     while (bytesToRead > 0 && endBody == NULL) {
         //printf("Receiving the rest of response\n");
-        while ((bytesReceived = recv(sock, buf + totalBytesReceived, bytesToRead, 0)) <= 0) {
-            
-            close(sock);
-            if (numFails > 3) {
-                fprintf(stderr,"Reattempts failed.\n");
-                exit(1);
-            }
-            
-            if (bytesReceived == -1 && verbose == 1) 
-                fprintf(stderr,"[VERBOSE] sprinkler_recv: recv failed. Reattempting...\n");
-            else if (bytesReceived == 0 && verbose == 1)
-                fprintf(stderr,"[VERBOSE] sprinkler_recv: server closed connection. Reconnecting...\n");
 
-            sprinkler_connect(servinfo);
-            sprinkler_send();
-            numFails++;
+        if (!tls) {
+            while ((bytesReceived = recv(sock, buf + totalBytesReceived, bytesToRead, 0)) <= 0) {
+                close(sock);
+                if (numFails > 3) {
+                    fprintf(stderr,"[ERROR] Reattempts failed: %s\n",strerror(errno));
+                    exit(1);
+                }
+
+                if (bytesReceived == -1 && verbose == 1) 
+                    printf("[VERBOSE] sprinkler_recv: recv failed. Reattempting...\n");
+                else if (bytesReceived == 0 && verbose == 1)
+                    printf("[VERBOSE] sprinkler_recv: server closed connection. Reconnecting...\n");
+
+                sprinkler_connect(servinfo);
+                sprinkler_send();
+                numFails++;
+            }
+        } else {
+            while ((retValue = SSL_read_ex(ssl, buf + totalBytesReceived, bytesToRead, (size_t *)(&bytesReceived))) <= 0) {
+
+                if (numFails > 3) {
+                    fprintf(stderr,"[ERROR] sprinkler_tls_recv failed\n");
+                    exit(1);
+                }
+
+                if (verbose == 1) {
+                    err = SSL_get_error(ssl,retValue);
+                    if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
+                        printf("[VERBOSE] sprinkler_tls_recv: server closed connection. Reconnecting...\n");  
+                    } else {
+                        printf("[VERBOSE] sprinkler_tls_recv: SSL_read_ex: %s\n", ERR_error_string(err, NULL));
+                    }
+                }
+
+                SSL_free(ssl); 
+                close(sock);
+                sprinkler_connect(servinfo);
+                ssl = sprinkler_tls_connect(ctx);
+                sprinkler_tls_send(ssl);
+                numFails++;
+            }
         }
+
         totalBytesReceived += bytesReceived;
         buf[totalBytesReceived] = '\0';
         bytesToRead -= bytesReceived;
 
         if (chunked) {
-            printf("Here!\n");
+            
             endBody = strstr(buf,"\r\n0\r\n"); //Should switch to indexing to improve speed!!!
 
             //If buf is full but we haven't found the marker for end of body, realloc if necessary
@@ -967,23 +1018,50 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
         strncpy(trash,buf+bufSize-6,5); //Copies the last 5 bytes in buf into the trash array, in case those constitute the end marker
 
         while ((chunked == 0 && bytesToTrash > 0) || (chunked == 1 && endBody == NULL)) {
-            while ((bytesReceived = recv(sock, trash+5, MAX_RESPONSE_SIZE-5, 0)) <= 0) {
-                
-                close(sock);
-                if (numFails > 3) {
-                    fprintf(stderr,"Reattempts failed.\n");
-                    exit(1);
-                }
-                
-                if (bytesReceived == -1 && verbose == 1) 
-                    fprintf(stderr,"[VERBOSE] sprinkler_recv: recv failed. Reattempting...\n");
-                else if (bytesReceived == 0 && verbose == 1)
-                    fprintf(stderr,"[VERBOSE] sprinkler_recv: server closed connection. Reconnecting...\n");
 
-                sprinkler_connect(servinfo);
-                sprinkler_send();
-                numFails++;
+            if (!tls) {
+                while ((bytesReceived = recv(sock, trash + 5, MAX_RESPONSE_SIZE-5, 0)) <= 0) {
+                    close(sock);
+                    if (numFails > 3) {
+                        fprintf(stderr,"[ERROR] Reattempts failed: %s\n",strerror(errno));
+                        exit(1);
+                    }
+
+                    if (bytesReceived == -1 && verbose == 1) 
+                        printf("[VERBOSE] sprinkler_recv: recv failed. Reattempting...\n");
+                    else if (bytesReceived == 0 && verbose == 1)
+                        printf("[VERBOSE] sprinkler_recv: server closed connection. Reconnecting...\n");
+
+                    sprinkler_connect(servinfo);
+                    sprinkler_send();
+                    numFails++;
+                }
+            } else {
+                while ((retValue = SSL_read_ex(ssl, trash + 5, MAX_RESPONSE_SIZE-5, (size_t *)(&bytesReceived))) <= 0) {
+
+                    if (numFails > 3) {
+                        fprintf(stderr,"[ERROR] sprinkler_tls_recv failed\n");
+                        exit(1);
+                    }
+
+                    if (verbose == 1) {
+                        err = SSL_get_error(ssl,retValue);
+                        if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
+                            printf("[VERBOSE] sprinkler_tls_recv: server closed connection. Reconnecting...\n");  
+                        } else {
+                            printf("[VERBOSE] sprinkler_tls_recv: SSL_read_ex: %s\n", ERR_error_string(err, NULL));
+                        }
+                    }
+
+                    SSL_free(ssl); 
+                    close(sock);
+                    sprinkler_connect(servinfo);
+                    ssl = sprinkler_tls_connect(ctx);
+                    sprinkler_tls_send(ssl);
+                    numFails++;
+                }
             }
+
             //totalBytesReceived += bytesReceived; //No need
             
             if (chunked) {
@@ -998,6 +1076,10 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll) {
     }
 }
 
+
+
+
+
 void sprinkler_tls_recv(char *fullResponse, int fullResponseSize, int receiveAll) {
     size_t bytesReceived;
     int totalBytesReceived = 0;
@@ -1010,10 +1092,10 @@ void sprinkler_tls_recv(char *fullResponse, int fullResponseSize, int receiveAll
         //ugh
     }
 
-    while ((retValue = SSL_read_ex(ssl, fullResponse, fullResponseSize - 1, &bytesReceived)) <= 0) {
+    while ((retValue = SSL_read_ex(ssl, fullResponse, fullResponseSize - 1, (size_t *)(&bytesReceived))) <= 0) {
 
         if (numFails > 3) {
-            fprintf(stderr, "sprinkler_tls_recv failed\n");
+            fprintf(stderr,"[ERROR] sprinkler_tls_recv failed\n");
             exit(1);
         }
 
@@ -1026,7 +1108,8 @@ void sprinkler_tls_recv(char *fullResponse, int fullResponseSize, int receiveAll
             }
         }
 
-        SSL_free(ssl); close(sock);
+        SSL_free(ssl); 
+        close(sock);
         sprinkler_connect(servinfo);
         ssl = sprinkler_tls_connect(ctx);
         sprinkler_tls_send(ssl);

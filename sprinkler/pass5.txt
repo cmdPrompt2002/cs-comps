@@ -4,3 +4,5 @@ alice
 bob@example.com
 alice@example.com
 bob
+pass
+user

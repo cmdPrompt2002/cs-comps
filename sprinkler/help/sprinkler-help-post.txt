@@ -1,3 +1,4 @@
+
 ===================Sprinkler help: http-post====================
 
 This service only supports sending login credentials through the body of a POST request, using Content-Type: application/x-www-form-urlencoded
@@ -29,3 +30,5 @@ SERVICE-SPECIFIC OPTIONS
         Examples:
             -i 'email=^USER^&passwd=^PASS^&session=12345'
             -i 'username=^USER^&pass=^PASS^&theme=&session='
+
+===============================================================

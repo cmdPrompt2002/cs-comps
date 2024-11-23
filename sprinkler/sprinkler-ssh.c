@@ -106,7 +106,7 @@ int sshAttempt(char* destination, char* usr, char* pass, ssh_session my_ssh) {
     //Connect to SSH server
     int rc = ssh_connect(my_ssh);
     if (rc != SSH_OK) {
-        fprintf(stderr, "Error connecting to host: %s\n",
+        fprintf(stderr, "[ERROR] Error connecting to host: %s\n",
             ssh_get_error(my_ssh));
         ssh_free(my_ssh);
         exit(-1);
@@ -155,7 +155,7 @@ void sshOutput(int attemptStatus, ssh_session my_ssh, char *usr, char *pass) {
     } else if(attemptStatus == SSH_AUTH_DENIED && verbose == 1) {
         printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
     } else if(verbose == 1) {
-        fprintf(stderr, "Error authenticating with password: %s\n",
+        fprintf(stderr, "[ERROR] Error authenticating with password: %s\n",
         ssh_get_error(my_ssh));
     }
     return;
