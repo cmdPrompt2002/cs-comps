@@ -11,25 +11,17 @@
 #include <regex.h>
 #include <time.h>
 
-//#include <poll.h> //For async I/O (WIP)
-
+//#include <poll.h> //For async I/O (WIP)aa
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
 #include "sprinkler-http.h"
 
-//Service-specific parameters
-//cs338.jeffondich.com/fdf/login::(F|S)=$'STRING'
-
-//http-get example ./sprinkler -u cs338 -p password -s 80 cs338.jeffondich.com/basicauth/ http-get 
 //http-get example ./sprinkler -U pass5.txt -P pass5.txt -s 80 cs338.jeffondich.com/basicauth/ http-get
-//http-post example ./sprinkler -u bob@example.com -p bob -s 80 cs338.jeffondich.com/fdf/login http-post
 //http-post example ./sprinkler -U pass5.txt -P pass5.txt -s 80 cs338.jeffondich.com/fdf/login http-post
-// en.wikipedia.org/wiki/Special:UserLogin
-// ./sprinkler -U usernames.txt -P passwords.txt -s 443 -S authenticationtest.com/HTTPAuth/ http-get
+
 // ./sprinkler -U pass5.txt -P pass5.txt -s 443 -S -r 'F=loginFail' authenticationtest.com/HTTPAuth/ http-get
-// ./sprinkler -U usernames.txt -P passwords.txt -s 443 -S authenticationtest.com/complexAuth/::F=$'Location:[^\r\n]*loginFail/\r\n' http-post
 
 int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, regex_t *checkStr, int responseCheck, char *inputParam);
 int sprinkler_connect(struct addrinfo *servinfo);
@@ -44,8 +36,7 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
 
 void sprinkler_send();
 void sprinkler_tls_send(SSL *ssl);
-void sprinkler_recv(char *fullResponse, int fullResponseSize, int receiveAll, int tls);
-void sprinkler_tls_recv(char *fullResponse, int fullResponseSize,int receiveAll);
+void sprinkler_recv(char *fullResponse, int fullResponseSize, int receiveAll, int tls); 
 
 char *to_base64(const unsigned char *data, size_t input_length, char *encoded_data);
 
@@ -56,7 +47,7 @@ struct addrinfo hints;
 struct addrinfo *servinfo;
 int bytes_sent;
 char *host;
-char *dir; //Directory of the server to request from
+char *dir; //Directory of the server to request froma
 char *type; //Type of HTTP request: GET pr POST
 char *charPort; //c getaddrinfo() only accepts char* for port
 extern int verbose;
@@ -348,7 +339,7 @@ int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int respo
             printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
             return HTTP_AUTH_SUCCESS;
         } else if (ret == REG_NOMATCH) {
-            if (verbose == 1) {
+            if (verbose == 2) {
                 printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
             }
             return HTTP_AUTH_FAILURE;
@@ -359,7 +350,7 @@ int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int respo
 
     } else if (responseCheck == 0) {
         if ((ret = regexec(checkStr,fullResponse, 0,NULL, 0)) == 0) {
-            if (verbose == 1) {
+            if (verbose == 2) {
                 printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
             }
             return HTTP_AUTH_FAILURE;
@@ -375,7 +366,7 @@ int http_get_attempt(char *usr, char*pass, int tls, regex_t *checkStr, int respo
             printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
             return HTTP_AUTH_SUCCESS;
         } else {
-            if (verbose == 1)
+            if (verbose == 2)
                 printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
             return HTTP_AUTH_FAILURE;
         }
@@ -578,7 +569,7 @@ int http_post_init(int tls, char *inputParam) {
 
             } else if (nameFound) { //If only name is found, then check if it could be usr or pass
                 //Prepare usr string regex
-                char *usrString = "usr|user|email|name";
+                char *usrString = "usr|user|email|.*name";
                 if (regcomp(&regex, usrString, REG_EXTENDED | REG_ICASE) != 0) {
                     fprintf(stderr,"[ERROR] Could not compile usrString regex\n");
                     exit(1);
@@ -654,7 +645,7 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
             printf("\033[0;32mAuthentication successful:\033[0m || Destination:%s || Username:%s || Password:%s\n", destination, usr, pass);
             return HTTP_AUTH_SUCCESS;
         } else if (ret == REG_NOMATCH) {
-            if (verbose == 1) {
+            if (verbose == 2) {
                 printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
             }
             return HTTP_AUTH_FAILURE;
@@ -666,7 +657,7 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
     } else if (responseCheck == 0) {
 
         if ((ret = regexec(checkStr,fullResponse, 0,NULL, 0)) == 0) {
-            if (verbose == 1) {
+            if (verbose == 2) {
                 printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
             }
             return HTTP_AUTH_FAILURE;
@@ -699,7 +690,7 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
                 //If location header value is same as directory in the request line, then probably wrong usr or pass. 
                 if (!strcmp(dir,fullResponse + match[1].rm_so)) {
                     fullResponse[match[1].rm_eo] = '\n';
-                    if (verbose == 1) {
+                    if (verbose == 2) {
                         printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
                     }
                     
@@ -713,7 +704,7 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
 
             }
         } else {
-            if (verbose == 1) {
+            if (verbose == 2) {
                 printf("\033[0;31mAuthentication failure:\033[0m Username:%s, Password:%s\n", usr, pass);
             }
             
@@ -817,9 +808,9 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
                     exit(1);
                 }
 
-                if (bytesReceived == -1 && verbose == 1) 
+                if (bytesReceived == -1 && verbose >= 1) 
                     printf("[VERBOSE] sprinkler_recv: recv failed. Reattempting...\n");
-                else if (bytesReceived == 0 && verbose == 1)
+                else if (bytesReceived == 0 && verbose >= 1)
                     printf("[VERBOSE] sprinkler_recv: server closed connection. Reconnecting...\n");
 
                 sprinkler_connect(servinfo);
@@ -835,7 +826,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
                     exit(1);
                 }
 
-                if (verbose == 1) {
+                if (verbose >= 1) {
                     err = SSL_get_error(ssl,retValue);
                     if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
                         printf("[VERBOSE] sprinkler_tls_recv: server closed connection. Reconnecting...\n");  
@@ -891,7 +882,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
 
         //Realloc buf if bytesToRead is larger than its size. If clause correct. Realloc correct.
         if (receiveAll == 1 && bytesToRead >= bufSize - totalBytesReceived) {
-            if (verbose == 1) {
+            if (verbose >= 1) {
                 printf("[VERBOSE] sprinkler_recv: target's response larger than allocated buffer. Reallocing...\n");
             }
             bufSize = (totalBytesReceived + contentLength + 1)*1.25;
@@ -921,7 +912,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
 
         //If buf is full but we haven't found the marker for end of body, realloc if necessary
         if (bytesToRead <= 0 && endBody == NULL && receiveAll) {
-            if (verbose == 1) {
+            if (verbose >= 1) {
                 printf("[VERBOSE] sprinkler_recv: target's response larger than allocated buffer. Reallocing...\n");
             }
             bufSize *=2;
@@ -951,9 +942,9 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
                     exit(1);
                 }
 
-                if (bytesReceived == -1 && verbose == 1) 
+                if (bytesReceived == -1 && verbose >= 1) 
                     printf("[VERBOSE] sprinkler_recv: recv failed. Reattempting...\n");
-                else if (bytesReceived == 0 && verbose == 1)
+                else if (bytesReceived == 0 && verbose >= 1)
                     printf("[VERBOSE] sprinkler_recv: server closed connection. Reconnecting...\n");
 
                 sprinkler_connect(servinfo);
@@ -968,7 +959,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
                     exit(1);
                 }
 
-                if (verbose == 1) {
+                if (verbose >= 1) {
                     err = SSL_get_error(ssl,retValue);
                     if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
                         printf("[VERBOSE] sprinkler_tls_recv: server closed connection. Reconnecting...\n");  
@@ -996,7 +987,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
 
             //If buf is full but we haven't found the marker for end of body, realloc if necessary
             if (bytesToRead <= 0 && endBody == NULL && receiveAll) {
-                if (verbose == 1) {
+                if (verbose >= 1) {
                     printf("[VERBOSE] sprinkler_recv: target's response larger than allocated buffer. Reallocing...\n");
                 }
                 bufSize *=2;
@@ -1027,9 +1018,9 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
                         exit(1);
                     }
 
-                    if (bytesReceived == -1 && verbose == 1) 
+                    if (bytesReceived == -1 && verbose >= 1) 
                         printf("[VERBOSE] sprinkler_recv: recv failed. Reattempting...\n");
-                    else if (bytesReceived == 0 && verbose == 1)
+                    else if (bytesReceived == 0 && verbose >= 1)
                         printf("[VERBOSE] sprinkler_recv: server closed connection. Reconnecting...\n");
 
                     sprinkler_connect(servinfo);
@@ -1044,7 +1035,7 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
                         exit(1);
                     }
 
-                    if (verbose == 1) {
+                    if (verbose >= 1) {
                         err = SSL_get_error(ssl,retValue);
                         if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
                             printf("[VERBOSE] sprinkler_tls_recv: server closed connection. Reconnecting...\n");  
@@ -1074,49 +1065,6 @@ void sprinkler_recv(char *buf, int bufSize, int receiveAll, int tls) {
             // printf("TRASH: %s\n\n",trash);
         }
     }
-}
-
-
-
-
-
-void sprinkler_tls_recv(char *fullResponse, int fullResponseSize, int receiveAll) {
-    size_t bytesReceived;
-    int totalBytesReceived = 0;
-    int retValue = 0;
-    int err = 0;
-    int numFails = 0;
-
-    if (receiveAll) {
-
-        //ugh
-    }
-
-    while ((retValue = SSL_read_ex(ssl, fullResponse, fullResponseSize - 1, (size_t *)(&bytesReceived))) <= 0) {
-
-        if (numFails > 3) {
-            fprintf(stderr,"[ERROR] sprinkler_tls_recv failed\n");
-            exit(1);
-        }
-
-        if (verbose == 1) {
-            err = SSL_get_error(ssl,retValue);
-            if (err == SSL_ERROR_ZERO_RETURN) { //Peer closed connection
-                printf("[VERBOSE] sprinkler_tls_recv: server closed connection. Reconnecting...\n");  
-            } else {
-                printf("[VERBOSE] sprinkler_tls_recv: %s\n", ERR_error_string(err, NULL));
-            }
-        }
-
-        SSL_free(ssl); 
-        close(sock);
-        sprinkler_connect(servinfo);
-        ssl = sprinkler_tls_connect(ctx);
-        sprinkler_tls_send(ssl);
-        numFails++;
-    }
-
-    fullResponse[bytesReceived] = '\0';
 }
 
 /*

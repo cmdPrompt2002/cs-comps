@@ -3,13 +3,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <libssh/libssh.h>
+#include <regex.h>
 #include "sprinkler-http.h"
 #include "sprinkler-ssh.h"
-#include <regex.h>
 
-//Example command: ./thing -U usernames.txt -P passwords.txt -s 22 ssh 192.168.64.4
-
-//Global variables
+//Global variables 
 char *service;
 char *destination;
 int port = -1;

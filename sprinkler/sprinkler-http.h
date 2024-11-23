@@ -24,7 +24,6 @@ int http_post_attempt(char *usr, char *pass, int tls, regex_t *checkStr, int res
 void sprinkler_send();
 void sprinkler_tls_send(SSL *ssl);
 void sprinkler_recv(char *fullResponse, int fullResponseSize, int receiveAll, int tls);
-void sprinkler_tls_recv(char *fullResponse, int fullResponseSize,int receiveAll);
 
 char *to_base64(const unsigned char *data, size_t input_length, char *encoded_data);
 
