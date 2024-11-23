@@ -3,8 +3,10 @@ CC = gcc
 CFLAGS = -g 
 OS = OSX
 ARCH = ARM
-LIBSSH = -rpath /Users/prompt/Desktop/CS338/cs-comps/sprinkler/prompt_ssh
+LIBSSH = 
 
+# Detecting OS and architecture. Code from Trevor Robinson and Somu on 
+# https://stackoverflow.com/questions/714100/os-detecting-makefile
 ifeq ($(OS),Windows_NT)
 	OS = WIN32
 	ifeq ($(PROCESSOR_ARCHITEW6432),AMD64)
