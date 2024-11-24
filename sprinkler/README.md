@@ -1,14 +1,16 @@
 # <code>Sprinkler v1.0</code>
 
-[About](#about)\
-[Installation](#installation):\
+[**About**](#about)
+
+[**Installation**](#installation)\
 -->[Installing required libraries](#installing-required-third-party-libraries)\
--->[Installing Sprinkler](#installing-sprinkler)\
-[How to use](#how-to-use)\
+-->[Installing Sprinkler](#installing-sprinkler)
+
+[**How to use**](#how-to-use)\
 -->[Printing help pages](#printing-help-pages)\
 -->[Basic syntax for password spraying](#basic-syntax-for-password-spraying)\
 -->[Extra options](#extra-options)\
--->[Examples](#examples)\
+-->[Examples](#examples)
 
 
 ## <code>About</code>
