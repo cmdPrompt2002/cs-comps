@@ -1,10 +1,11 @@
 # <code>Sprinkler v1.0</code>
 
-[**About**](#about)
+[**What's Sprinkler?**](#whats-sprinkler)
 
 [**Installation**](#installation)\
-    - [Installing required libraries](#installing-required-third-party-libraries)\
+-->[Installing required libraries](#installing-required-third-party-libraries)\
 -->[Installing Sprinkler](#installing-sprinkler)
+
 
 [**How to use**](#how-to-use)\
 -->[Printing help pages](#printing-help-pages)\
@@ -13,7 +14,7 @@
 -->[Examples](#examples)
 
 
-## <code>About</code>
+## <code>What's Sprinkler?</code>
 
 Sprinkler is a password sprayer developed by Prompt Eua-anant and Sam Ederington for Carleton College CS Comps project (Fall 2024). Written in C, it utilizes several third-party libraries to spray login credentials to some remote server. The following services are supported by Sprinkler: ssh, http-get, http-post. The available services include ssh, http-get, http-post.
 
@@ -58,6 +59,22 @@ MacOS:
 
         make
         sudo make install
+
+## <code>Setting up a target server</code>
+
+If you'd like to set up your own target server to test Sprinkler's performance, here's the instructions!
+
+1. Install ubuntu (LINK)
+2. Install apache2
+
+SSH
+
+HTTP Basic auth
+
+Setting up a HTTP server that uses form-based authentication
+
+
+
 
 
 ## <code>How to use</code>
@@ -119,18 +136,19 @@ Examples:
 
 ## <code>**Examples**</code>
 
-Basic password spraying to an SSH server
+To an SSH server
 
     sprinkler -U user5.txt -P pass5.txt -s 22 127.0.0.1 ssh
 
-Spraying to an HTTP basic auth server with a delay of 1.5 seconds between attempts 
+To a HTTP basic auth server
 
-    sprinkler -U usernames.txt -P pass.txt -s 80 127.0.0.1 http-get
+    sprinkler -U usernames.txt -P pass.txt -s 80 127.0.0.1/myDir http-get
 
-Spraying to an HTTPS server that uses form-based authentication
+To a HTTPS server that uses form-based authentication
 
     sprinkler -U user.txt -P pass.txt -s 443 -S 127.0.0.1 http-post
 
-Same as above, but with form parameters specified
+Same, but we already know form variable names
 
-    sprinkler -U user.txt -P pass.txt -s 443 -S -i 'email=^USER^&passwd=^PASS^' 127.0.0.1 http-post
+    sprinkler -U user.txt -P pass.txt -s 443 -S -i 'email=^USER^&passwd=^PASS^&region=whatever' 127.0.0.1 http-post
+
