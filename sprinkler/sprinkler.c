@@ -139,8 +139,8 @@ int main(int argc, char *argv[]) {
         } else {
             int args = 1;
             for (; optind < argc; optind++) {
-                if (args > 2) {
-                    sprintf(errMsg + strlen(errMsg),"    too many arguments\n");
+                if (args == 3) {
+                    sprintf(errMsg + strlen(errMsg),"    Too many arguments\n");
                     err = 1;
                     break;
                 }
@@ -177,10 +177,10 @@ int main(int argc, char *argv[]) {
 
     //Check for valid command line input
     if (service == NULL) {
-        sprintf(errMsg + strlen(errMsg), "    Service unidentified. Available services: ssh, http-get\n");
+        sprintf(errMsg + strlen(errMsg), "    Service unidentified.\n");
         err = 1;
     } if (destination == NULL) {
-        sprintf(errMsg + strlen(errMsg), "    Destination is missing\n");
+        sprintf(errMsg + strlen(errMsg), "    Target is missing\n");
         err = 1;
     } if (strlen(pass) == 0 && passFilename == NULL) {
         sprintf(errMsg + strlen(errMsg), "    Password or password file is missing\n");
@@ -189,10 +189,10 @@ int main(int argc, char *argv[]) {
         sprintf(errMsg + strlen(errMsg), "    Username or username file is missing\n");
         err = 1;
     } if (port == -1) {
-        sprintf(errMsg + strlen(errMsg), "    Destination port is missing\n");
+        sprintf(errMsg + strlen(errMsg), "    Target port is missing\n");
         err = 1; 
     } if (err == 1) {
-        sprintf(errMsg + strlen(errMsg), "type './sprinkler -h' for correct usage\nType './sprinkler -h SERVICE' for additional SERVICE options\n");
+        sprintf(errMsg + strlen(errMsg), "type 'sprinkler -h' for correct usage\nType 'sprinkler -h SERVICE' for additional SERVICE options\n");
         fprintf(stderr, "%s", errMsg);
         exit(1);
     }

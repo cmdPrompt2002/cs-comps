@@ -119,7 +119,7 @@ int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, reg
 
     //Get server information into servinfo
     memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC;     // Accepts both ipv4 and ipv6 protocols
+    hints.ai_family = AF_INET;     // Accepts ipv4 only
     hints.ai_socktype = SOCK_STREAM; // Use TCP, not UDP
 
     if ((status = getaddrinfo(host, charPort, &hints, &servinfo)) != 0) {

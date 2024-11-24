@@ -52,6 +52,10 @@ install: sprinkler
 	sudo cp -r ./help /usr/local/bin/sprinkler-help
 	sudo cp sprinkler /usr/local/bin/sprinkler
 
+uninstall:
+	rm -f /usr/local/bin/sprinkler
+	rm -r /usr/local/bin/sprinkler-help
+
 clean:
 	rm -f *.o
 	rm -f sprinkler
