@@ -1,6 +1,17 @@
-# Sprinkler v1.0
+# <code>Sprinkler v1.0</code>
 
-## About
+[About](#about)\
+[Installation](#installation):\
+-->[Installing required libraries](#installing-required-third-party-libraries)\
+-->[Installing Sprinkler](#installing-sprinkler)\
+[How to use](#how-to-use)\
+-->[Printing help pages](#printing-help-pages)\
+-->[Basic syntax for password spraying](#basic-syntax-for-password-spraying)\
+-->[Extra options](#extra-options)\
+-->[Examples](#examples)\
+
+
+## <code>About</code>
 
 Sprinkler is a password sprayer developed by Prompt Eua-anant and Sam Ederington for Carleton College CS Comps project (Fall 2024). Written in C, it utilizes several third-party libraries to spray login credentials to some remote server. The following services are supported by Sprinkler: ssh, http-get, http-post. The available services include ssh, http-get, http-post.
 
@@ -10,7 +21,7 @@ What is password spraying?
 
 For more information, visit [https://github.com/cmdPrompt2002/cs-comps/tree/main/sprinkler/writeup.pdf]
 
-## Installation
+## <code>Installation</code>
 
 ### Installing required third-party libraries
 
@@ -47,7 +58,7 @@ MacOS:
         sudo make install
 
 
-## How to use
+## <code>How to use</code>
 
 ### Printing help pages
 
@@ -88,13 +99,13 @@ Examples:
 
 ### Extra options
 
-Sprinkler supports the following ***global*** options:
+**Global** options:
 
     -d DELAY            set a delay time in seconds between each login attempt
     -v                  Verbose mode. Prints out status reports eg. if target server closes the connection
     -V                  Extra verbose mode. Prints out all success/failure messages for all login credentials sent to the server
 
-Some options are only supported in some services. Here is a brief synopsis for these ***service-specific*** options:
+**Service-specific** options:
 
     -S                  Connect via SSL/TLS
     -r REGEX            Supply a regex to determine login success/failure based on whether the REGEX is found in TARGET's response
@@ -104,3 +115,20 @@ Some options are only supported in some services. Here is a brief synopsis for t
 
     sprinkler -h SERVICE
 
+## <code>**Examples**</code>
+
+Basic password spraying to an SSH server
+
+    sprinkler -U user5.txt -P pass5.txt -s 22 127.0.0.1 ssh
+
+Spraying to an HTTP basic auth server with a delay of 1.5 seconds between attempts 
+
+    sprinkler -U usernames.txt -P pass.txt -s 80 127.0.0.1 http-get
+
+Spraying to an HTTPS server that uses form-based authentication
+
+    sprinkler -U user.txt -P pass.txt -s 443 -S 127.0.0.1 http-post
+
+Same as above, but with form parameters specified
+
+    sprinkler -U user.txt -P pass.txt -s 443 -S -i 'email=^USER^&passwd=^PASS^' 127.0.0.1 http-post
