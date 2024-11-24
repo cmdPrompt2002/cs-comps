@@ -3,7 +3,7 @@
 [**About**](#about)
 
 [**Installation**](#installation)\
--->[Installing required libraries](#installing-required-third-party-libraries)\
+    - [Installing required libraries](#installing-required-third-party-libraries)\
 -->[Installing Sprinkler](#installing-sprinkler)
 
 [**How to use**](#how-to-use)\
