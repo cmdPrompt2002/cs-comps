@@ -126,9 +126,28 @@ Examples:
 
 **Service-specific** options:
 
-    -S                  Connect via SSL/TLS (for http-get, http-post)
-    -r REGEX            Supply a regex to determine login success/failure based on whether the REGEX is found in TARGET's response (for http-get, http-post)
-    -i PARAMETERS       Supply parameter names and values (if applicable) to send to TARGET (for http-post)
+    -S                  (For http-get, http-post) Connect via SSL/TLS 
+    -r REGEX            (For http-get, http-post) Supply a regex (POSIX extended regex) to determine a login success (S=) or failure (F=) if found in target's response.
+                        Examples:
+                            -r 'S=welcome to'
+                            -r 'F=/login/[^\r\n]*\r\n\r\n'
+
+    -i PARAMETERS       (For http-post) Supply parameter names and values that go in the request body, using the following syntax:
+                            'param1=value1&param2=value2&...'
+                        If a parameter corresponds to the username, set value to ^USER^
+                        If a parameter corresponds to the password, set value to ^PASS^
+
+                        If this option is not set, then sprinkler proceeds though the following steps:
+                            1. Send a GET request to the server to get the login form
+                            2. Parse the login form to get all input parameter names (and values if applicable)
+                            3. Simultaneously, check if the parameter name suggests a username, or password, or something else:
+                                - if the "name" field contains the regex "usr|user|email|.*name" then that parameter name corresponds to the username
+                                - if the "name" field contains the regex "pass|pw|psw|ps" then that parameter name corresponds to the password
+                                - otherwise, save the "name" and "value" field and add it to the login request
+                        
+                        Examples:
+                            -i 'email=^USER^&passwd=^PASS^&session=12345'
+                            -i 'username=^USER^&pass=^PASS^&theme=&session='
 
  To find out if a service support these options, and how to use them, type this command:
 

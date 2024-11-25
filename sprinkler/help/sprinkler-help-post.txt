@@ -23,8 +23,8 @@ SERVICE-SPECIFIC OPTIONS
             1. Send a GET request to the server to get the login form
             2. Parse the login form to get all input parameter names (and values if applicable)
             3. Simultaneously, check if the parameter name suggests a username, or password, or something else:
-                - if the "name" field contains "usr", "user", or "mail" then that parameter name corresponds to the username
-                - if the "name" field contains "pass", or "pw" then that parameter name corresponds to the password
+                - if the "name" field contains the regex "usr|user|email|.*name" then that parameter name corresponds to the username
+                - if the "name" field contains the regex "pass|pw|psw|ps" then that parameter name corresponds to the password
                 - otherwise, save the "name" and "value" field and add it to the login request
 
         Examples:
