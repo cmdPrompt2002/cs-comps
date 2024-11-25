@@ -152,3 +152,84 @@ Same, but we already know form variable names
 
     sprinkler -U user.txt -P pass.txt -s 443 -S -i 'email=^USER^&passwd=^PASS^&region=whatever' 127.0.0.1 http-post
 
+## <code>Target Setup</code>
+
+Setup an Ubuntu virtual machine, which will be our ssh target as well as hosting an Apache2 server we can target with http-get basic authentication and http-post authentication.
+
+After installing and running the Ubuntu VM, install requirements with the following commands:
+
+    sudo apt install ssh
+
+    sudo apt install apache2
+
+    sudo apt install lib apache2-mod-php
+
+Then, configure ssh's settings by editing the file /etc/ssh/sshd_config to say:
+
+    PasswordAuthentication yes
+
+Start SSH with:
+
+    sudo systemctl start ssh
+
+SSH is now running and a valid login target.
+
+Go into /etc/apache2/apache2.conf and at the top add the following code:
+
+    <Directory "/var/www/html">
+    AuthType Basic
+    AuthName "Restricted Content"
+    AuthUserFile /etc/apache2/.htpasswd
+    Require valid-user
+    </Directory>
+
+Set up a password by running the following, replacing the username as you see fit
+
+    sudo htpasswd /etc/apache2/.htpasswd username
+
+You will be prompted for a password, chooses one to to go with that username. You will need the two to login to your server.
+
+Start Apache2 with:
+
+    sudo systemctl start apache2
+
+Now when you open up the website you will be prompted to login via basic auth.
+
+To setup http-post authentication, reopen /etc/apache2/apache2.conf and comment out your addition to the top.
+
+Create a .php file in /var/www/html/ with the following code:
+
+    <html>
+	    <body>
+		    <form method=”POST”>
+			    <input type=”text” name=”name”>
+			    <input type=”psw” name=”psw”
+			    <input type=”submit”>
+		    </form>
+	    </body>
+    </html>
+    <?php
+	    $name=$_POST[‘name’];
+	    $psw=$_POST[‘psw’];
+	    if ($name == “ubuntu” and $psw == “ubuntu”) {
+		    ob_clean();
+    		header(‘Location: https://zapatopi.net/treeoctopus/’, true, 302);
+	    	die();
+	    }
+	    else {
+	    	echo “Sorry, Invalid login.”;
+	    }
+    ?>
+
+Restart your Apache2 service like so:
+
+    sudo systemctl restart apache2
+
+Now when you open up the .php page, you will have a form to fill out to login that is a valid target for Sprinkler's http-post method.
+
+To attack these targets, you will need the ip address of your ubuntu virtual machine, which can be found by executing:
+
+    ip a
+
+As well as the ports. Typically ssh will be on port 22 and the websites on port 80.
+
