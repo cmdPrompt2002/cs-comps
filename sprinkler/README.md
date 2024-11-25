@@ -65,7 +65,7 @@ MacOS:
 
 If you'd like to set up your own target server to test Sprinkler's performance, here's the instructions!
 
-First, download an Ubuntu virtual machine, which will be our ssh target as well as hosting an Apache2 server we can target with http-get basic authentication and http-post authentication.
+First, download an Ubuntu virtual machine from https://ubuntu.com/download/server#manual-install, which will be our ssh target as well as hosting an Apache2 server we can target with http-get basic authentication and http-post authentication.
 
 After installing and running the Ubuntu VM, install requirements with the following commands:
 
