@@ -47,6 +47,13 @@ MacOS:
 
 Once you have installed all the required third-party libraries, follow the instructions below.
 
+First, clone this folder, then cd into it.
+
+    git clone https://github.com/cmdPrompt2002/cs-comps.git sprinkler
+    cd sprinkler
+
+Second, depending on your machine's OS, install Sprinkler according to the instructions below.
+
 Linux:
 
     make
