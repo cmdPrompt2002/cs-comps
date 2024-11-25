@@ -17,13 +17,9 @@
 
 ## <code>What's Sprinkler?</code>
 
-Sprinkler is a password sprayer developed by Prompt Eua-anant and Sam Ederington for Carleton College CS Comps project (Fall 2024). Written in C, it utilizes several third-party libraries to spray login credentials to some remote server. The following services are supported by Sprinkler: ssh, http-get, http-post. The available services include ssh, http-get, http-post.
+Sprinkler is a password sprayer developed by Prompt Eua-anant and Sam Ederington for Carleton College CS Comps project (Fall 2024). Written in C, it utilizes several third-party libraries to spray login credentials to some remote server. The following services are supported by Sprinkler: ssh, http-get, http-post.
 
-What is password spraying? 
-- Shotgunning a bunch of login credentials to a remote server, seeing which ones grant you access
-
-
-For more information, visit [https://github.com/cmdPrompt2002/cs-comps/tree/main/sprinkler/writeup.pdf]
+For more information, visit [https://github.com/cmdPrompt2002/cs-comps/tree/main/writeup.pdf]
 
 ## <code>Installation</code>
 
