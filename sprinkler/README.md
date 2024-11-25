@@ -126,9 +126,9 @@ Examples:
 
 **Service-specific** options:
 
-    -S                  Connect via SSL/TLS
-    -r REGEX            Supply a regex to determine login success/failure based on whether the REGEX is found in TARGET's response
-    -i PARAMETERS       Supply parameter names and values (if applicable) to send to TARGET
+    -S                  Connect via SSL/TLS (for http-get, http-post)
+    -r REGEX            Supply a regex to determine login success/failure based on whether the REGEX is found in TARGET's response (for http-get, http-post)
+    -i PARAMETERS       Supply parameter names and values (if applicable) to send to TARGET (for http-post)
 
  To find out if a service support these options, and how to use them, type this command:
 
