@@ -6,6 +6,7 @@
 -->[Installing required libraries](#installing-required-third-party-libraries)\
 -->[Installing Sprinkler](#installing-sprinkler)
 
+[**Setting up a target server**](#setting-up-a-target-server)
 
 [**How to use**](#how-to-use)\
 -->[Printing help pages](#printing-help-pages)\
@@ -64,116 +65,7 @@ MacOS:
 
 If you'd like to set up your own target server to test Sprinkler's performance, here's the instructions!
 
-1. Install ubuntu (LINK)
-2. Install apache2
-
-SSH
-
-HTTP Basic auth
-
-Setting up a HTTP server that uses form-based authentication
-
-
-
-
-
-## <code>How to use</code>
-
-### Printing help pages
-
-To print out standard help page or additional options available for a service, type the following commands:
-
-    sprinkler -h
-
-    sprinkler -h SERVICE
-
-
-### Basic syntax for password spraying:
-
-    sprinkler -u user1 -p pass1 -s 80 TARGET SERVICE
-
-Required inputs:
-
-Option        | Description 
-------------- | ------------- 
--u or -U      | -u for inputting a single username. -U for inputting a file with one username per line. 
--p or -P      | Same as above, but for passwords  
--s            | Port number of the target server
-
-Argument        | Description 
-------------- | -------------
-TARGET        | The IP address or domain name, and directory (if applicable) to spray login credentials to. 
-SERVICE       | The login service used by the TARGET. Currently, Sprinkler supports three services: ssh, http-get, and http-post  
-
-NOTE: all arguments must come AFTER the options
-
-
-Examples:
-
-    sprinkler -u user1 -P passwords.txt -s 80 mywebsite.com/loginPages/basicAuth http-get
-
-    sprinkler -U user5.txt -P pass5.txt -s 22 127.0.0.1 ssh
-
-    sprinkler -u user -p pass -s 80 127.0.0.1/login http-post
-
-### Extra options
-
-**Global** options:
-
-    -d DELAY            set a delay time in seconds between each login attempt
-    -v                  Verbose mode. Prints out status reports eg. if target server closes the connection
-    -V                  Extra verbose mode. Prints out all success/failure messages for all login credentials sent to the server
-
-**Service-specific** options:
-
-    -S                  (For http-get, http-post) Connect via SSL/TLS 
-    -r REGEX            (For http-get, http-post) Supply a regex (POSIX extended regex) to determine a login success (S=) or failure (F=) if found in target's response.
-                        Examples:
-                            -r 'S=welcome to'
-                            -r 'F=/login/[^\r\n]*\r\n\r\n'
-
-    -i PARAMETERS       (For http-post) Supply parameter names and values that go in the request body, using the following syntax:
-                            'param1=value1&param2=value2&...'
-                        If a parameter corresponds to the username, set value to ^USER^
-                        If a parameter corresponds to the password, set value to ^PASS^
-
-                        If this option is not set, then sprinkler proceeds though the following steps:
-                            1. Send a GET request to the server to get the login form
-                            2. Parse the login form to get all input parameter names (and values if applicable)
-                            3. Simultaneously, check if the parameter name suggests a username, or password, or something else:
-                                - if the "name" field contains the regex "usr|user|email|.*name" then that parameter name corresponds to the username
-                                - if the "name" field contains the regex "pass|pw|psw|ps" then that parameter name corresponds to the password
-                                - otherwise, save the "name" and "value" field and add it to the login request
-                        
-                        Examples:
-                            -i 'email=^USER^&passwd=^PASS^&session=12345'
-                            -i 'username=^USER^&pass=^PASS^&theme=&session='
-
- To find out if a service support these options, and how to use them, type this command:
-
-    sprinkler -h SERVICE
-
-## <code>**Examples**</code>
-
-To an SSH server
-
-    sprinkler -U user5.txt -P pass5.txt -s 22 127.0.0.1 ssh
-
-To a HTTP basic auth server
-
-    sprinkler -U usernames.txt -P pass.txt -s 80 127.0.0.1/myDir http-get
-
-To a HTTPS server that uses form-based authentication
-
-    sprinkler -U user.txt -P pass.txt -s 443 -S 127.0.0.1 http-post
-
-Same, but we already know form variable names
-
-    sprinkler -U user.txt -P pass.txt -s 443 -S -i 'email=^USER^&passwd=^PASS^&region=whatever' 127.0.0.1 http-post
-
-## <code>Target Setup</code>
-
-Setup an Ubuntu virtual machine, which will be our ssh target as well as hosting an Apache2 server we can target with http-get basic authentication and http-post authentication.
+First, download an Ubuntu virtual machine, which will be our ssh target as well as hosting an Apache2 server we can target with http-get basic authentication and http-post authentication.
 
 After installing and running the Ubuntu VM, install requirements with the following commands:
 
@@ -251,4 +143,102 @@ To attack these targets, you will need the ip address of your ubuntu virtual mac
     ip a
 
 As well as the ports. Typically ssh will be on port 22 and the websites on port 80.
+
+
+## <code>How to use</code>
+
+### Printing help pages
+
+To print out standard help page or additional options available for a service, type the following commands:
+
+    sprinkler -h
+
+    sprinkler -h SERVICE
+
+
+### Basic syntax for password spraying:
+
+    sprinkler -u user1 -p pass1 -s 80 TARGET SERVICE
+
+Required inputs:
+
+Option        | Description 
+------------- | ------------- 
+-u or -U      | -u for inputting a single username. -U for inputting a file with one username per line. 
+-p or -P      | Same as above, but for passwords  
+-s            | Port number of the target server
+
+Argument        | Description 
+------------- | -------------
+TARGET        | The IP address or domain name, and directory (if applicable) to spray login credentials to. 
+SERVICE       | The login service used by the TARGET. Currently, Sprinkler supports three services: ssh, http-get, and http-post  
+
+NOTE: all arguments must come AFTER the options
+
+
+Examples:
+
+    sprinkler -u user1 -P passwords.txt -s 80 mywebsite.com/loginPages/basicAuth http-get
+
+    sprinkler -U user5.txt -P pass5.txt -s 22 127.0.0.1 ssh
+
+    sprinkler -u user -p pass -s 80 127.0.0.1/login http-post
+
+### Extra options
+
+**Global** options:
+
+    -d DELAY            set a delay time in seconds between each login attempt
+    -v                  Verbose mode. Prints out status reports eg. if target server closes the connection
+    -V                  Extra verbose mode. Prints out all success/failure messages for all login credentials sent to the server
+
+**Service-specific** options:
+
+    -S                  (For http-get, http-post) Connect via SSL/TLS 
+    -r REGEX            (For http-get, http-post) Supply a regex (POSIX extended regex) to determine a login success (S=) or failure (F=) if found in target's response.
+
+                        Examples:
+                            -r 'S=welcome to'
+                            -r 'F=/login/[^\r\n]*\r\n\r\n'
+
+    -i PARAMETERS       (For http-post) Supply parameter names and values that go in the request body, using the following syntax:
+                            'param1=value1&param2=value2&...'
+                        If a parameter corresponds to the username, set value to ^USER^
+                        If a parameter corresponds to the password, set value to ^PASS^
+
+                        If this option is not set, then sprinkler proceeds though the following steps:
+                            1. Send a GET request to the server to get the login form
+                            2. Parse the login form to get all input parameter names (and values if applicable)
+                            3. Simultaneously, check if the parameter name suggests a username, or password, or something else:
+                                - if the "name" field contains the regex "usr|user|email|.*name" then that parameter name corresponds to the username
+                                - if the "name" field contains the regex "pass|pw|psw|ps" then that parameter name corresponds to the password
+                                - otherwise, save the "name" and "value" field and add it to the login request
+                        
+                        Examples:
+                            -i 'email=^USER^&passwd=^PASS^&session=12345'
+                            -i 'username=^USER^&pass=^PASS^&theme=&session='
+
+ To find out if a service support these options, and how to use them, type this command:
+
+    sprinkler -h SERVICE
+
+## <code>**Examples**</code>
+
+To an SSH server
+
+    sprinkler -U user5.txt -P pass5.txt -s 22 127.0.0.1 ssh
+
+To a HTTP basic auth server
+
+    sprinkler -U usernames.txt -P pass.txt -s 80 127.0.0.1/myDir http-get
+
+To a HTTPS server that uses form-based authentication
+
+    sprinkler -U user.txt -P pass.txt -s 443 -S 127.0.0.1 http-post
+
+Same, but we already know form variable names
+
+    sprinkler -U user.txt -P pass.txt -s 443 -S -i 'email=^USER^&passwd=^PASS^&region=whatever' 127.0.0.1 http-post
+
+
 
