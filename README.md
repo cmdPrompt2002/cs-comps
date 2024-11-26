@@ -10,7 +10,8 @@ Final products:
 - <code>login.php</code>: code for the target server's login form
 
 Other
-- <code>plan.md</code>: initial plan for this project
-- <code>development_plan.txt</code>: same as above
-- <code>status.md</code>: initial status report for this project
-- <code>bandit.txt</code>: bandit assignment
+- <code>notes_and_misc</code>: Notes, status reports, and other assignments while working on this project
+    - <code>plan.md</code> Initial plan for this project
+    - <code>development_plan.txt</code>: same as above
+    - <code>status.md</code>: initial status report for this project
+    - <code>bandit.txt</code>: bandit assignment
