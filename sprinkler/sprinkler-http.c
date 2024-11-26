@@ -11,17 +11,12 @@
 #include <regex.h>
 #include <time.h>
 
-//#include <poll.h> //For async I/O (WIP)aa
+//#include <poll.h> //For synchronous I/O multiplexing (WIP)
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
 #include "sprinkler-http.h"
-
-//http-get example ./sprinkler -U pass5.txt -P pass5.txt -s 80 cs338.jeffondich.com/basicauth/ http-get
-//http-post example ./sprinkler -U pass5.txt -P pass5.txt -s 80 cs338.jeffondich.com/fdf/login http-post
-
-// ./sprinkler -U pass5.txt -P pass5.txt -s 443 -S -r 'F=loginFail' authenticationtest.com/HTTPAuth/ http-get
 
 int http_main(char *usr, char *pass, FILE *usrFile, FILE *passFile, int tls, regex_t *checkStr, int responseCheck, char *inputParam);
 int sprinkler_connect(struct addrinfo *servinfo);
